@@ -42,6 +42,26 @@ The authorized redirect URI in Google Cloud must be exactly
 This writes the settings to Chatwoot's installation configuration, which is
 required by current Chatwoot releases for the Google email-channel flow.
 
+## Firebase Cloud Messaging (mobile push notifications)
+
+Chatwoot includes the FCM HTTP v1 integration in its application source. To
+enable it for Eyepic's mobile app, add the Firebase project ID and the complete
+Firebase service-account JSON to `/opt/chatwoot-runtime/.env`:
+
+```env
+FIREBASE_PROJECT_ID=
+FIREBASE_CREDENTIALS='{"type":"service_account",...}'
+```
+
+Keep the JSON on one line and do not commit it. The service account needs
+permission to send Firebase Cloud Messaging messages for the Firebase project.
+Run `deployment/eyepic/configure-firebase-fcm.sh` after adding or rotating the
+credentials. The script writes the values into Chatwoot's installation
+configuration and restarts the processes that deliver notifications.
+
+This is separate from the support email inbox: it sends push notifications only
+when a Chatwoot client registers an `fcm` notification subscription.
+
 ## Verification
 
 ```bash
