@@ -15,6 +15,23 @@ Chatwoot installation at `https://support.eyepic.io`.
 Chatwoot is bound only to `127.0.0.1:3001`. Caddy terminates TLS and routes
 `support.eyepic.io` to it. The companion CRM remains on `127.0.0.1:3000`.
 
+## Firebase Profile inbox sidebar
+
+This deployment builds the pinned `eyepic/chatwoot-firebase-profile` image.
+It adds the **Firebase Profile** inbox integration, which lets an agent select
+**Check app profile** in the conversation sidebar. The lookup gateway retrieves
+the Firebase Auth user matching the contact email plus `users_credits/{uid}`
+and `subscriptions/{uid}` from Firestore.
+
+The gateway is internal-only. On the server, store the Firebase service-account
+JSON at `/opt/chatwoot-runtime/firebase-service-account.json` with mode `0600`.
+Set `FIREBASE_PROFILE_ENABLED=true` in `/opt/chatwoot-runtime/.env`, then run
+`deployment/eyepic/bootstrap-server.sh`. Enable **Firebase Profile** for each
+required inbox in Chatwoot under Settings → Integrations.
+
+Never commit the service account. The browser does not receive it; only the
+internal gateway container can read it.
+
 ## First deployment
 
 1. Install Docker Compose v2 and Caddy on the host.

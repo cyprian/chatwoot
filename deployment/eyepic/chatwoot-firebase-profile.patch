@@ -1,0 +1,524 @@
+diff --git a/app/javascript/dashboard/composables/useUISettings.js b/app/javascript/dashboard/composables/useUISettings.js
+index 4f015e1..a1ce723 100644
+--- a/app/javascript/dashboard/composables/useUISettings.js
++++ b/app/javascript/dashboard/composables/useUISettings.js
+@@ -12,6 +12,7 @@ export const DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER = Object.freeze([
+   { name: 'conversation_participants' },
+   { name: 'linear_issues' },
+   { name: 'shopify_orders' },
++  { name: 'firebase_profile' },
+ ]);
+ 
+ export const DEFAULT_CONTACT_SIDEBAR_ITEMS_ORDER = Object.freeze([
+diff --git a/app/javascript/dashboard/i18n/locale/en/conversation.json b/app/javascript/dashboard/i18n/locale/en/conversation.json
+index 3081c29..65fe442 100644
+--- a/app/javascript/dashboard/i18n/locale/en/conversation.json
++++ b/app/javascript/dashboard/i18n/locale/en/conversation.json
+@@ -367,6 +367,7 @@
+       "MACROS": "Macros",
+       "LINEAR_ISSUES": "Linked Linear Issues",
+       "SHOPIFY_ORDERS": "Shopify Orders",
++      "FIREBASE_PROFILE": "App profile",
+       "SHARED_FILES": "Attachments"
+     },
+     "SHARED_FILES": {
+@@ -398,8 +399,23 @@
+         "PARTIALLY_FULFILLED": "Partially Fulfilled",
+         "UNFULFILLED": "Unfulfilled"
+       }
+-    }
++    },
++    "FIREBASE_PROFILE": {
++      "CHECK": "Check app profile",
++      "LOADING": "Loading app profile…",
++      "NO_EMAIL": "This contact has no email address.",
++      "NOT_FOUND": "No Firebase user was found for this email.",
++      "FIREBASE_ID": "Firebase ID",
++      "CREDITS": "Credits",
++      "AVAILABLE_CREDITS": "Available credits",
++      "USED_CREDITS": "Used credits",
++      "CREDIT_TRANSACTIONS": "Credit transactions",
++      "CURRENT_SUBSCRIPTION": "Current subscription",
++      "SUBSCRIPTION_TRANSACTIONS": "Subscription transactions",
++      "PHOTOS_THIS_PERIOD": "photos this period",
++      "ERROR": "Unable to load app profile"
++    }
+   },
+   "CONVERSATION_CUSTOM_ATTRIBUTES": {
+     "ADD_BUTTON_TEXT": "Create attribute",
+     "NO_RECORDS_FOUND": "No attributes found",
+diff --git a/app/javascript/dashboard/routes/dashboard/conversation/ContactPanel.vue b/app/javascript/dashboard/routes/dashboard/conversation/ContactPanel.vue
+index fe95f9e..408be23 100644
+--- a/app/javascript/dashboard/routes/dashboard/conversation/ContactPanel.vue
++++ b/app/javascript/dashboard/routes/dashboard/conversation/ContactPanel.vue
+@@ -21,6 +21,7 @@ import SharedFiles from './SharedFiles.vue';
+ import Draggable from 'vuedraggable';
+ import MacrosList from './Macros/List.vue';
+ import ShopifyOrdersList from 'dashboard/components/widgets/conversation/ShopifyOrdersList.vue';
++import FirebaseProfile from 'dashboard/components/widgets/conversation/FirebaseProfile.vue';
+ import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader.vue';
+ import LinearIssuesList from 'dashboard/components/widgets/conversation/linear/IssuesList.vue';
+ import LinearSetupCTA from 'dashboard/components/widgets/conversation/linear/LinearSetupCTA.vue';
+@@ -54,6 +55,16 @@ const shopifyIntegration = useFunctionGetter(
+ const isShopifyFeatureEnabled = computed(
+   () => shopifyIntegration.value.enabled
+ );
++const firebaseProfileIntegration = useFunctionGetter(
++  'integrations/getIntegration',
++  'firebase_profile'
++);
++const isFirebaseProfileEnabled = computed(
++  () =>
++    firebaseProfileIntegration.value?.hooks?.some(
++      hook => hook.status && hook.inbox?.id === props.inboxId
++    )
++);
+ 
+ const { isCloudFeatureEnabled } = useAccount();
+ 
+@@ -128,6 +139,7 @@ onMounted(() => {
+   store.dispatch('attributes/get', 0);
+   // Load integrations to ensure linear integration state is available
+   store.dispatch('integrations/get', 'linear');
++  store.dispatch('integrations/get', 'firebase_profile');
+ });
+ </script>
+ 
+@@ -286,6 +298,26 @@ onMounted(() => {
+               <ShopifyOrdersList :contact-id="contactId" />
+             </AccordionItem>
+           </div>
++          <div
++            v-else-if="
++              element.name === 'firebase_profile' && isFirebaseProfileEnabled
++            "
++          >
++            <AccordionItem
++              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.FIREBASE_PROFILE')"
++              :is-open="isContactSidebarItemOpen('is_firebase_profile_open')"
++              compact
++              @toggle="
++                value => toggleSidebarUIState('is_firebase_profile_open', value)
++              "
++            >
++              <FirebaseProfile
++                :conversation-id="conversationId"
++                :contact-id="contactId"
++                :email="contact?.email"
++              />
++            </AccordionItem>
++          </div>
+           <div v-else-if="element.name === 'contact_notes'">
+             <AccordionItem
+               :title="$t('CONVERSATION_SIDEBAR.ACCORDION.CONTACT_NOTES')"
+diff --git a/config/integration/apps.yml b/config/integration/apps.yml
+index 1a45cc0..d8baece 100644
+--- a/config/integration/apps.yml
++++ b/config/integration/apps.yml
+@@ -241,6 +241,14 @@ shopify:
+   hook_type: account
+   allow_multiple_hooks: false
+ 
++firebase_profile:
++  id: firebase_profile
++  logo: firebase_profile.png
++  i18n_key: firebase_profile
++  hook_type: inbox
++  allow_multiple_hooks: true
++  settings_form_schema: []
++
+ leadsquared:
+   id: leadsquared
+   feature_flag: crm_integration
+diff --git a/config/locales/en.yml b/config/locales/en.yml
+index dc2b4d3..492fb59 100644
+--- a/config/locales/en.yml
++++ b/config/locales/en.yml
+@@ -378,6 +378,10 @@ en:
+       name: 'Shopify'
+       short_description: 'Access order details and customer data from your Shopify store.'
+       description: 'Connect your Shopify store to access order details, customer information, and product data directly within your conversations and helps your support team provide faster, more contextual assistance to your customers.'
++    firebase_profile:
++      name: 'Firebase Profile'
++      short_description: 'Look up an app user’s Firebase profile, credits, and subscription from an enabled inbox.'
++      description: 'Connect an inbox to securely look up the Firebase Auth account and associated credits and subscription documents for the conversation contact.'
+     leadsquared:
+       name: 'LeadSquared'
+       short_description: 'Sync your contacts and conversations with LeadSquared CRM.'
+diff --git a/config/routes.rb b/config/routes.rb
+index 01dab6a..96131c4 100644
+--- a/config/routes.rb
++++ b/config/routes.rb
+@@ -359,6 +359,7 @@ Rails.application.routes.draw do
+                 get :orders
+               end
+             end
++            get 'firebase_profile/show', to: 'firebase_profile#show'
+             resource :linear, controller: 'linear', only: [] do
+               collection do
+                 delete :destroy
+diff --git a/app/controllers/api/v1/accounts/integrations/firebase_profile_controller.rb b/app/controllers/api/v1/accounts/integrations/firebase_profile_controller.rb
+new file mode 100644
+index 0000000..099baec
+--- /dev/null
++++ b/app/controllers/api/v1/accounts/integrations/firebase_profile_controller.rb
+@@ -0,0 +1,31 @@
++class Api::V1::Accounts::Integrations::FirebaseProfileController < Api::V1::Accounts::BaseController
++  before_action :fetch_conversation
++  before_action :fetch_contact
++  before_action :ensure_integration_enabled
++
++  def show
++    return render json: { error: 'Contact email is required' }, status: :unprocessable_entity if @contact.email.blank?
++
++    response = FirebaseProfileGateway.new.lookup(@contact.email)
++    render json: response
++  rescue FirebaseProfileGateway::UnavailableError => e
++    render json: { error: e.message }, status: :service_unavailable
++  end
++
++  private
++
++  def fetch_conversation
++    @conversation = Current.account.conversations.find(params[:conversation_id])
++  end
++
++  def fetch_contact
++    @contact = Current.account.contacts.find(params[:contact_id])
++    return if @conversation.contact_id == @contact.id
++
++    render json: { error: 'Contact does not belong to this conversation' }, status: :unprocessable_entity
++  end
++
++  def ensure_integration_enabled
++    Current.account.hooks.enabled.find_by!(app_id: 'firebase_profile', inbox_id: @conversation.inbox_id)
++  end
++end
+diff --git a/app/services/firebase_profile_gateway.rb b/app/services/firebase_profile_gateway.rb
+new file mode 100644
+index 0000000..c87b471
+--- /dev/null
++++ b/app/services/firebase_profile_gateway.rb
+@@ -0,0 +1,38 @@
++require 'json'
++require 'net/http'
++require 'uri'
++
++class FirebaseProfileGateway
++  class UnavailableError < StandardError; end
++
++  def lookup(email)
++    uri = URI.join(url, '/v1/profile')
++    request = Net::HTTP::Post.new(uri)
++    request['Authorization'] = "Bearer #{token}"
++    request['Content-Type'] = 'application/json'
++    request.body = { email: email }.to_json
++
++    response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', open_timeout: 2, read_timeout: 8) do |http|
++      http.request(request)
++    end
++    raise UnavailableError, 'Firebase profile service is unavailable' unless response.is_a?(Net::HTTPSuccess)
++
++    JSON.parse(response.body)
++  rescue SocketError, Timeout::Error, Errno::ECONNREFUSED, JSON::ParserError => e
++    raise UnavailableError, "Firebase profile service is unavailable: #{e.message}"
++  end
++
++  private
++
++  def url
++    ENV.fetch('FIREBASE_PROFILE_GATEWAY_URL')
++  rescue KeyError
++    raise UnavailableError, 'Firebase profile integration is not configured'
++  end
++
++  def token
++    ENV.fetch('FIREBASE_PROFILE_GATEWAY_TOKEN')
++  rescue KeyError
++    raise UnavailableError, 'Firebase profile integration is not configured'
++  end
++end
+diff --git a/app/javascript/dashboard/api/integrations/firebaseProfile.js b/app/javascript/dashboard/api/integrations/firebaseProfile.js
+new file mode 100644
+index 0000000..8bd27f8
+--- /dev/null
++++ b/app/javascript/dashboard/api/integrations/firebaseProfile.js
+@@ -0,0 +1,17 @@
++/* global axios */
++
++import ApiClient from '../ApiClient';
++
++class FirebaseProfileAPI extends ApiClient {
++  constructor() {
++    super('integrations/firebase_profile', { accountScoped: true });
++  }
++
++  getProfile(conversationId, contactId) {
++    return axios.get(`${this.url}/show`, {
++      params: { conversation_id: conversationId, contact_id: contactId },
++    });
++  }
++}
++
++export default new FirebaseProfileAPI();
+diff --git a/app/javascript/dashboard/components/widgets/conversation/FirebaseProfile.vue b/app/javascript/dashboard/components/widgets/conversation/FirebaseProfile.vue
+new file mode 100644
+index 0000000..87c2d7d
+--- /dev/null
++++ b/app/javascript/dashboard/components/widgets/conversation/FirebaseProfile.vue
+@@ -0,0 +1,113 @@
++<script setup>
++import { computed, onMounted, ref } from 'vue';
++import FirebaseProfileAPI from 'dashboard/api/integrations/firebaseProfile';
++
++const props = defineProps({
++  conversationId: { type: [Number, String], required: true },
++  contactId: { type: [Number, String], required: true },
++  email: { type: String, default: '' },
++});
++
++const profile = ref(null);
++const loading = ref(false);
++const error = ref('');
++const showTransactions = ref(false);
++const transactionTitle = ref('');
++const selectedTransactions = ref([]);
++
++const credits = computed(() => profile.value?.credits?.data || {});
++const subscription = computed(() => profile.value?.subscription?.data || {});
++const creditTransactions = computed(() => credits.value.transactions || []);
++const subscriptionTransactions = computed(() => subscription.value.transactions || []);
++
++const checkProfile = async () => {
++  if (!props.email) return;
++  loading.value = true;
++  error.value = '';
++  try {
++    const { data } = await FirebaseProfileAPI.getProfile(props.conversationId, props.contactId);
++    profile.value = data;
++  } catch (e) {
++    error.value = e.response?.data?.error || 'Unable to load app profile';
++  } finally {
++    loading.value = false;
++  }
++};
++
++const openTransactions = (title, transactions) => {
++  transactionTitle.value = title;
++  selectedTransactions.value = [...transactions].sort(
++    (a, b) => (b.timestamp_millis || b.purchaseDateMillis || 0) - (a.timestamp_millis || a.purchaseDateMillis || 0)
++  );
++  showTransactions.value = true;
++};
++
++const transactionDate = transaction => {
++  const value = transaction.timestamp || transaction.purchaseDate || transaction.timestamp_millis || transaction.purchaseDateMillis;
++  return value ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '—';
++};
++
++const transactionLabel = transaction => transaction.reason || transaction.pack_marketing_title || transaction.productId || transaction.productIdentifier || transaction.product_id || transaction.description || '—';
++const transactionPlatform = transaction => (transaction.platform ? transaction.platform.toUpperCase() : '—');
++
++onMounted(checkProfile);
++</script>
++
++<template>
++  <div class="px-4 py-3 text-sm text-n-slate-12">
++    <p v-if="!email" class="text-n-slate-11">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.NO_EMAIL') }}</p>
++    <p v-else-if="loading" class="text-n-slate-11">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.LOADING') }}</p>
++    <p v-else-if="error" class="text-n-ruby-11">{{ error }}</p>
++    <p v-else-if="profile && !profile.auth?.found" class="text-n-slate-11">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.NOT_FOUND') }}</p>
++
++    <div v-else-if="profile" class="space-y-4">
++      <div class="rounded-lg bg-n-alpha-2 p-3">
++        <p class="text-xs text-n-slate-11">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.FIREBASE_ID') }}</p>
++        <p class="mt-1 break-all font-mono text-xs">{{ profile.auth.uid }}</p>
++      </div>
++
++      <div class="grid grid-cols-2 gap-2">
++        <div class="rounded-lg bg-n-alpha-2 p-3">
++          <p class="text-xs text-n-slate-11">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.AVAILABLE_CREDITS') }}</p>
++          <p class="mt-1 text-xl font-semibold">{{ credits.available_credits ?? '—' }}</p>
++        </div>
++        <div class="rounded-lg bg-n-alpha-2 p-3">
++          <p class="text-xs text-n-slate-11">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.USED_CREDITS') }}</p>
++          <p class="mt-1 text-xl font-semibold">{{ credits.used_credits ?? '—' }}</p>
++        </div>
++      </div>
++
++      <button v-if="creditTransactions.length" class="w-full rounded-lg border border-n-weak px-3 py-2 text-left hover:bg-n-alpha-2" @click="openTransactions($t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.CREDIT_TRANSACTIONS'), creditTransactions)">
++        <span class="font-medium">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.CREDIT_TRANSACTIONS') }}</span>
++        <span class="float-right text-n-slate-11">{{ creditTransactions.length }}</span>
++      </button>
++
++      <div class="rounded-lg bg-n-alpha-2 p-3">
++        <div class="flex items-center justify-between gap-2">
++          <p class="text-xs text-n-slate-11">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.CURRENT_SUBSCRIPTION') }}</p>
++          <span class="rounded-full bg-n-alpha-3 px-2 py-0.5 text-xs font-medium">{{ subscription.status || '—' }}</span>
++        </div>
++        <p class="mt-2 font-medium">{{ subscription.product_id || '—' }}</p>
++        <p v-if="subscription.permissions" class="mt-1 text-xs text-n-slate-11">{{ subscription.permissions.photos_used_in_current_period ?? 0 }} / {{ subscription.permissions.photos_limit_per_period ?? '—' }} {{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.PHOTOS_THIS_PERIOD') }}</p>
++      </div>
++
++      <button v-if="subscriptionTransactions.length" class="w-full rounded-lg border border-n-weak px-3 py-2 text-left hover:bg-n-alpha-2" @click="openTransactions($t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.SUBSCRIPTION_TRANSACTIONS'), subscriptionTransactions)">
++        <span class="font-medium">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.SUBSCRIPTION_TRANSACTIONS') }}</span>
++        <span class="float-right text-n-slate-11">{{ subscriptionTransactions.length }}</span>
++      </button>
++    </div>
++
++    <woot-modal v-model:show="showTransactions" :on-close="() => (showTransactions = false)" size="modal-big">
++      <woot-modal-header :header-title="transactionTitle" />
++      <div class="max-h-[65vh] overflow-y-auto px-6 pb-6">
++        <div v-for="transaction in selectedTransactions" :key="transaction.transaction_id || transaction.transactionIdentifier || transaction.timestamp_millis || transaction.purchaseDateMillis" class="border-b border-n-weak py-3 last:border-0">
++          <div class="flex items-start justify-between gap-3">
++            <div><p class="font-medium">{{ transactionLabel(transaction) }}</p><p class="mt-1 text-xs text-n-slate-11">{{ transactionDate(transaction) }}</p></div>
++            <span class="rounded bg-n-alpha-3 px-2 py-0.5 text-xs font-medium">{{ transactionPlatform(transaction) }}</span>
++          </div>
++          <p class="mt-2 text-xs text-n-slate-11"><span v-if="transaction.credits !== undefined">{{ transaction.credits }} {{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.CREDITS') }}</span><span v-if="transaction.price"> · {{ transaction.price }}</span><span v-if="transaction.country"> · {{ transaction.country }}</span><span v-if="transaction.app_version"> · v{{ transaction.app_version }}</span></p>
++        </div>
++      </div>
++    </woot-modal>
++  </div>
++</template>
+diff --git a/spec/controllers/api/v1/accounts/integrations/firebase_profile_controller_spec.rb b/spec/controllers/api/v1/accounts/integrations/firebase_profile_controller_spec.rb
+new file mode 100644
+index 0000000..388556d
+--- /dev/null
++++ b/spec/controllers/api/v1/accounts/integrations/firebase_profile_controller_spec.rb
+@@ -0,0 +1,44 @@
++require 'rails_helper'
++
++RSpec.describe 'Firebase Profile Integration API', type: :request do
++  let(:account) { create(:account) }
++  let(:agent) { create(:user, account: account, role: :agent) }
++  let(:inbox) { create(:inbox, account: account) }
++  let(:contact) { create(:contact, account: account, email: 'customer@example.com') }
++  let(:conversation) { create(:conversation, account: account, inbox: inbox, contact: contact) }
++  let(:gateway) { instance_double(FirebaseProfileGateway) }
++
++  before do
++    create(:integrations_hook, account: account, inbox: inbox, app_id: 'firebase_profile')
++    allow(FirebaseProfileGateway).to receive(:new).and_return(gateway)
++  end
++
++  describe 'GET /api/v1/accounts/:account_id/integrations/firebase_profile/show' do
++    it 'returns the Firebase profile for a contact in an enabled inbox' do
++      allow(gateway).to receive(:lookup).with(contact.email).and_return({ 'auth' => { 'found' => true, 'uid' => 'uid-1' } })
++
++      get "/api/v1/accounts/#{account.id}/integrations/firebase_profile/show",
++          params: { conversation_id: conversation.id, contact_id: contact.id }, headers: agent.create_new_auth_token, as: :json
++
++      expect(response).to have_http_status(:ok)
++      expect(response.parsed_body.dig('auth', 'uid')).to eq('uid-1')
++    end
++
++    it 'does not expose the integration from an inbox without its hook' do
++      other_inbox = create(:inbox, account: account)
++      other_conversation = create(:conversation, account: account, inbox: other_inbox, contact: contact)
++
++      get "/api/v1/accounts/#{account.id}/integrations/firebase_profile/show",
++          params: { conversation_id: other_conversation.id, contact_id: contact.id }, headers: agent.create_new_auth_token, as: :json
++
++      expect(response).to have_http_status(:not_found)
++    end
++
++    it 'requires authentication' do
++      get "/api/v1/accounts/#{account.id}/integrations/firebase_profile/show",
++          params: { conversation_id: conversation.id, contact_id: contact.id }, as: :json
++
++      expect(response).to have_http_status(:unauthorized)
++    end
++  end
++end
+diff --git a/app/javascript/dashboard/i18n/locale/en/integrationApps.json b/app/javascript/dashboard/i18n/locale/en/integrationApps.json
+index 6b3ee32..ec6f8a1 100644
+--- a/app/javascript/dashboard/i18n/locale/en/integrationApps.json
++++ b/app/javascript/dashboard/i18n/locale/en/integrationApps.json
+@@ -48,6 +48,7 @@
+     },
+     "SIDEBAR_DESCRIPTION": {
+-      "DIALOGFLOW": "Dialogflow is a natural language processing platform for building conversational interfaces. Integrating it with {installationName} lets bots handle queries first and transfer them to agents when needed. It helps qualify leads and reduce agent workload by answering FAQs. To add Dialogflow, create a Service Account in Google Console and share the credentials. Refer to the docs for details"
++      "DIALOGFLOW": "Dialogflow is a natural language processing platform for building conversational interfaces. Integrating it with {installationName} lets bots handle queries first and transfer them to agents when needed. It helps qualify leads and reduce agent workload by answering FAQs. To add Dialogflow, create a Service Account in Google Console and share the credentials. Refer to the docs for details",
++      "FIREBASE_PROFILE": "Enable this integration for an inbox to look up the contact’s Firebase Auth account, credits, and subscription."
+     }
+   }
+ }
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/MultipleIntegrationHooks.vue b/app/javascript/dashboard/routes/dashboard/settings/integrations/MultipleIntegrationHooks.vue
+index 8931ea4..555c0b9 100644
+--- a/app/javascript/dashboard/routes/dashboard/settings/integrations/MultipleIntegrationHooks.vue
++++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/MultipleIntegrationHooks.vue
+@@ -76,5 +76,5 @@ const inboxName = hook => (hook.inbox ? hook.inbox.name : '');
+         $t(
+-          `INTEGRATION_APPS.SIDEBAR_DESCRIPTION.${integration.name.toUpperCase()}`,
++          `INTEGRATION_APPS.SIDEBAR_DESCRIPTION.${integration.id.toUpperCase()}`,
+           { installationName: globalConfig.installationName }
+         )
+       "
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/NewHook.vue b/app/javascript/dashboard/routes/dashboard/settings/integrations/NewHook.vue
+index 997a850..0a0f2e1 100644
+--- a/app/javascript/dashboard/routes/dashboard/settings/integrations/NewHook.vue
++++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/NewHook.vue
+@@ -38,9 +38,14 @@ export default {
+     ...mapGetters({
+       uiFlags: 'integrations/getUIFlags',
+       dialogFlowEnabledInboxes: 'inboxes/dialogFlowEnabledInboxes',
++      allInboxes: 'inboxes/getInboxes',
+     }),
+     inboxes() {
+-      return this.dialogFlowEnabledInboxes
++      const selectableInboxes = this.isIntegrationDialogflow
++        ? this.dialogFlowEnabledInboxes
++        : this.allInboxes;
++
++      return selectableInboxes
+         .filter(inbox => {
+           if (!this.isIntegrationDialogflow) {
+             return true;
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/IntegrationItem.vue b/app/javascript/dashboard/routes/dashboard/settings/integrations/IntegrationItem.vue
+index 89f0a78..3e3ec11 100644
+--- a/app/javascript/dashboard/routes/dashboard/settings/integrations/IntegrationItem.vue
++++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/IntegrationItem.vue
+@@ -56,9 +56,9 @@ const actionURL = computed(() =>
+       <div class="flex h-12 w-12 mb-2">
+         <img
+-          :src="`/dashboard/images/integrations/${id}.png`"
++          :src="`/dashboard/images/integrations/${id}.png${id === 'firebase_profile' ? '?v=2' : ''}`"
+           class="max-w-full rounded-md border border-n-weak shadow-sm block dark:hidden bg-n-alpha-3 dark:bg-n-alpha-2"
+         />
+         <img
+-          :src="`/dashboard/images/integrations/${id}-dark.png`"
++          :src="`/dashboard/images/integrations/${id}-dark.png${id === 'firebase_profile' ? '?v=2' : ''}`"
+           class="max-w-full rounded-md border border-n-weak shadow-sm hidden dark:block bg-n-alpha-3 dark:bg-n-alpha-2"
+         />
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/Integration.vue b/app/javascript/dashboard/routes/dashboard/settings/integrations/Integration.vue
+index 3088819..4aed084 100644
+--- a/app/javascript/dashboard/routes/dashboard/settings/integrations/Integration.vue
++++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/Integration.vue
+@@ -70,9 +70,9 @@ const confirmDeletion = () => {
+       <div class="flex h-16 w-16 items-center justify-center flex-shrink-0">
+         <img
+-          :src="`/dashboard/images/integrations/${integrationId}.png`"
++          :src="`/dashboard/images/integrations/${integrationId}.png${integrationId === 'firebase_profile' ? '?v=2' : ''}`"
+           class="max-w-full rounded-md border border-n-weak shadow-sm block dark:hidden bg-n-alpha-3 dark:bg-n-alpha-2"
+         />
+         <img
+-          :src="`/dashboard/images/integrations/${integrationId}-dark.png`"
++          :src="`/dashboard/images/integrations/${integrationId}-dark.png${integrationId === 'firebase_profile' ? '?v=2' : ''}`"
+           class="max-w-full rounded-md border border-n-weak shadow-sm hidden dark:block bg-n-alpha-3 dark:bg-n-alpha-2"
+         />
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/SingleIntegrationHooks.vue b/app/javascript/dashboard/routes/dashboard/settings/integrations/SingleIntegrationHooks.vue
+index 7e8a601..5e8e342 100644
+--- a/app/javascript/dashboard/routes/dashboard/settings/integrations/SingleIntegrationHooks.vue
++++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/SingleIntegrationHooks.vue
+@@ -28,9 +28,9 @@ const { replaceInstallationName } = useBranding();
+       <div class="flex h-16 w-16 items-center justify-center">
+         <img
+-          :src="`/dashboard/images/integrations/${integrationId}.png`"
++          :src="`/dashboard/images/integrations/${integrationId}.png${integrationId === 'firebase_profile' ? '?v=2' : ''}`"
+           class="max-w-full rounded-md border border-n-weak shadow-sm block dark:hidden bg-n-alpha-3 dark:bg-n-alpha-2"
+         />
+         <img
+-          :src="`/dashboard/images/integrations/${integrationId}-dark.png`"
++          :src="`/dashboard/images/integrations/${integrationId}-dark.png${integrationId === 'firebase_profile' ? '?v=2' : ''}`"
+           class="max-w-full rounded-md border border-n-weak shadow-sm hidden dark:block bg-n-alpha-3 dark:bg-n-alpha-2"
+         />
