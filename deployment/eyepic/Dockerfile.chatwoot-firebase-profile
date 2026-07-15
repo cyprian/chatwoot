@@ -1,0 +1,18 @@
+ARG CHATWOOT_VERSION=v4.14.0
+FROM chatwoot/chatwoot:${CHATWOOT_VERSION}
+
+USER root
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+RUN apk add --no-cache patch
+COPY deployment/eyepic/chatwoot-firebase-profile.patch /tmp/chatwoot-firebase-profile.patch
+COPY deployment/eyepic/firebase-profile-logo.png /tmp/firebase-profile-logo.png
+RUN patch --batch --forward -p1 -d /app < /tmp/chatwoot-firebase-profile.patch
+# Integration settings derive image URLs from the integration id. Provide both
+# variants before assets are compiled so they are published with the dashboard.
+RUN cp /tmp/firebase-profile-logo.png /app/public/dashboard/images/integrations/firebase_profile.png \
+  && cp /tmp/firebase-profile-logo.png /app/public/dashboard/images/integrations/firebase_profile-dark.png
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+  && npm install -g pnpm@10.2.0 \
+  && pnpm install --frozen-lockfile --ignore-scripts \
+  && SECRET_KEY_BASE=precompile_placeholder RAILS_LOG_TO_STDOUT=enabled bundle exec rake assets:precompile \
+  && rm -rf node_modules tmp/cache
