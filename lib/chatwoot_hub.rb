@@ -2,6 +2,13 @@
 class ChatwootHub
   DEFAULT_BASE_URL = 'https://hub.2.chatwoot.com'.freeze
 
+  # Hub requests transmit installation metadata and, depending on the endpoint,
+  # registration details, telemetry, or push payloads. Keep this opt-in for
+  # self-hosted Eyepic deployments.
+  def self.outbound_enabled?
+    ActiveModel::Type::Boolean.new.cast(ENV.fetch('CHATWOOT_HUB_ENABLED', false))
+  end
+
   def self.base_url
     DEFAULT_BASE_URL
   end
@@ -83,6 +90,8 @@ class ChatwootHub
   end
 
   def self.sync_with_hub
+    return unless outbound_enabled?
+
     begin
       info = instance_config
       info = info.merge(instance_metrics) unless ENV['DISABLE_TELEMETRY']
@@ -97,6 +106,8 @@ class ChatwootHub
   end
 
   def self.register_instance(company_name, owner_name, owner_email)
+    return unless outbound_enabled?
+
     info = { company_name: company_name, owner_name: owner_name, owner_email: owner_email, subscribed_to_mailers: true }
     RestClient.post(registration_url, info.merge(instance_config).to_json, { content_type: :json, accept: :json })
   rescue *ExceptionList::REST_CLIENT_EXCEPTIONS => e
@@ -106,6 +117,8 @@ class ChatwootHub
   end
 
   def self.send_push(fcm_options)
+    return unless outbound_enabled?
+
     send_push_with_response(fcm_options)
   rescue *ExceptionList::REST_CLIENT_EXCEPTIONS => e
     Rails.logger.error "Exception: #{e.message}"
@@ -114,11 +127,14 @@ class ChatwootHub
   end
 
   def self.send_push_with_response(fcm_options)
+    return unless outbound_enabled?
+
     info = { fcm_options: fcm_options }
     RestClient.post(push_notification_url, info.merge(instance_config).to_json, { content_type: :json, accept: :json })
   end
 
   def self.emit_event(event_name, event_data)
+    return unless outbound_enabled?
     return if ENV['DISABLE_TELEMETRY']
 
     info = { event_name: event_name, event_data: event_data }

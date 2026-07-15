@@ -3,6 +3,7 @@ class Internal::CheckNewVersionsJob < ApplicationJob
 
   def perform
     return unless Rails.env.production?
+    return unless ChatwootHub.outbound_enabled?
 
     @instance_info = ChatwootHub.sync_with_hub
     update_version_info

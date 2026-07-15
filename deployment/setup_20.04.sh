@@ -1142,6 +1142,9 @@ function webserver() {
 #   None
 ##############################################################################
 function report_event() {
+  # Hub telemetry is opt-in for self-hosted Eyepic deployments.
+  [ "${CHATWOOT_HUB_ENABLED:-false}" = "true" ] || return 0
+
   local event_name="$1"
   local event_data="$2"
 

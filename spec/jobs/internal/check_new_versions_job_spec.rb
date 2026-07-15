@@ -1,6 +1,12 @@
 require 'rails_helper'
 
 RSpec.describe Internal::CheckNewVersionsJob do
+  around do |example|
+    with_modified_env CHATWOOT_HUB_ENABLED: 'true' do
+      example.run
+    end
+  end
+
   subject(:job) { described_class.perform_now }
 
   it 'updates the latest chatwoot version in redis' do
