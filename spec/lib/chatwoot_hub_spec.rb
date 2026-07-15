@@ -1,6 +1,12 @@
 require 'rails_helper'
 
 describe ChatwootHub do
+  around do |example|
+    with_modified_env CHATWOOT_HUB_ENABLED: 'true' do
+      example.run
+    end
+  end
+
   describe '.base_url' do
     it 'uses the static hub url' do
       expect(described_class::DEFAULT_BASE_URL).to eq('https://hub.2.chatwoot.com')
@@ -15,6 +21,15 @@ describe ChatwootHub do
   end
 
   context 'when fetching sync_with_hub' do
+    it 'does not contact the hub unless it is explicitly enabled' do
+      with_modified_env CHATWOOT_HUB_ENABLED: nil do
+        allow(RestClient).to receive(:post)
+
+        expect(described_class.sync_with_hub).to be_nil
+        expect(RestClient).not_to have_received(:post)
+      end
+    end
+
     it 'get latest version from chatwoot hub' do
       version = '1.1.1'
       allow(RestClient).to receive(:post).and_return({ version: version }.to_json)
