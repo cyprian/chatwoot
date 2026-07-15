@@ -5,8 +5,10 @@ USER root
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN apk add --no-cache patch
 COPY deployment/eyepic/chatwoot-firebase-profile.patch /tmp/chatwoot-firebase-profile.patch
+COPY deployment/eyepic/apply-hub-egress-gate.rb /tmp/apply-hub-egress-gate.rb
 COPY deployment/eyepic/firebase-profile-logo.png /tmp/firebase-profile-logo.png
 RUN patch --batch --forward -p1 -d /app < /tmp/chatwoot-firebase-profile.patch
+RUN ruby /tmp/apply-hub-egress-gate.rb
 # Integration settings derive image URLs from the integration id. Provide both
 # variants before assets are compiled so they are published with the dashboard.
 RUN cp /tmp/firebase-profile-logo.png /app/public/dashboard/images/integrations/firebase_profile.png \
