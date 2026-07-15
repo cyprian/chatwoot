@@ -1,6 +1,12 @@
 require 'rails_helper'
 
 RSpec.describe Internal::TriggerDailyScheduledItemsJob do
+  around do |example|
+    with_modified_env CHATWOOT_HUB_ENABLED: 'true' do
+      example.run
+    end
+  end
+
   subject(:perform_job) { described_class.perform_now }
 
   let(:installation_id) { 'test-installation-id' }
@@ -33,6 +39,16 @@ RSpec.describe Internal::TriggerDailyScheduledItemsJob do
     allow(Rails.env).to receive(:production?).and_return(false)
 
     perform_job
+
+    expect(Internal::CheckNewVersionsJob).not_to have_received(:set)
+  end
+
+  it 'does not schedule the version check when Hub egress is disabled' do
+    allow(Rails.env).to receive(:production?).and_return(true)
+
+    with_modified_env CHATWOOT_HUB_ENABLED: nil do
+      perform_job
+    end
 
     expect(Internal::CheckNewVersionsJob).not_to have_received(:set)
   end

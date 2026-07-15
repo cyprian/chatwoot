@@ -1,6 +1,12 @@
 require 'rails_helper'
 
 RSpec.describe Internal::CheckNewVersionsJob do
+  around do |example|
+    with_modified_env CHATWOOT_HUB_ENABLED: 'true' do
+      example.run
+    end
+  end
+
   subject(:job) { described_class.perform_now }
 
   let(:reconsile_premium_config_service) { instance_double(Internal::ReconcilePlanConfigService) }
