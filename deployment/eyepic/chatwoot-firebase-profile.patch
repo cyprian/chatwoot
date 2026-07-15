@@ -8,22 +8,29 @@ index 000000000..9547ef625
 +  before_action :fetch_conversation
 +  before_action :fetch_contact
 +  before_action :ensure_integration_enabled
-++  def show
++
++  def show
 +    return render json: { error: 'Contact email is required' }, status: :unprocessable_entity if @contact.email.blank?
-++    render json: EyePhotoClient.new.lookup(email: @contact.email, api_key: @hook.access_token)
++
++    render json: EyePhotoClient.new.lookup(email: @contact.email, api_key: @hook.access_token)
 +  rescue EyePhotoClient::UnavailableError => e
 +    render json: { error: e.message }, status: :bad_gateway
 +  end
-++  private
-++  def fetch_conversation
++
++  private
++
++  def fetch_conversation
 +    @conversation = Current.account.conversations.find(params[:conversation_id])
 +  end
-++  def fetch_contact
++
++  def fetch_contact
 +    @contact = Current.account.contacts.find(params[:contact_id])
 +    return if @conversation.contact_id == @contact.id
-++    render json: { error: 'Contact does not belong to this conversation' }, status: :unprocessable_entity
++
++    render json: { error: 'Contact does not belong to this conversation' }, status: :unprocessable_entity
 +  end
-++  def ensure_integration_enabled
++
++  def ensure_integration_enabled
 +    @hook = Current.account.hooks.enabled.find_by!(app_id: 'eye_photo', inbox_id: @conversation.inbox_id)
 +  end
 +end
@@ -37,23 +44,30 @@ index 000000000..099baecf2
 +  before_action :fetch_conversation
 +  before_action :fetch_contact
 +  before_action :ensure_integration_enabled
-++  def show
++
++  def show
 +    return render json: { error: 'Contact email is required' }, status: :unprocessable_entity if @contact.email.blank?
-++    response = FirebaseProfileGateway.new.lookup(@contact.email)
++
++    response = FirebaseProfileGateway.new.lookup(@contact.email)
 +    render json: response
 +  rescue FirebaseProfileGateway::UnavailableError => e
 +    render json: { error: e.message }, status: :service_unavailable
 +  end
-++  private
-++  def fetch_conversation
++
++  private
++
++  def fetch_conversation
 +    @conversation = Current.account.conversations.find(params[:conversation_id])
 +  end
-++  def fetch_contact
++
++  def fetch_contact
 +    @contact = Current.account.contacts.find(params[:contact_id])
 +    return if @conversation.contact_id == @contact.id
-++    render json: { error: 'Contact does not belong to this conversation' }, status: :unprocessable_entity
++
++    render json: { error: 'Contact does not belong to this conversation' }, status: :unprocessable_entity
 +  end
-++  def ensure_integration_enabled
++
++  def ensure_integration_enabled
 +    Current.account.hooks.enabled.find_by!(app_id: 'firebase_profile', inbox_id: @conversation.inbox_id)
 +  end
 +end
@@ -68,14 +82,17 @@ index 087a9b78d..27256ca11 100644
    end
 @@ -44,2 +44,15 @@ class Api::V1::Accounts::Integrations::HooksController < Api::V1::Accounts::Base
    end
-++  # Eye.photo's generic integration form submits the key as a setting. Move it
++
++  # Eye.photo's generic integration form submits the key as a setting. Move it
 +  # to the hook's encrypted token column before persistence so it cannot be
 +  # returned by the integrations API or stored in the JSON settings column.
 +  def eye_photo_credentials(hook_params)
 +    return hook_params unless hook_params[:app_id] == 'eye_photo'
-++    api_key = hook_params[:settings]&.delete(:api_key)
++
++    api_key = hook_params[:settings]&.delete(:api_key)
 +    raise ActionController::ParameterMissing, :api_key if api_key.blank?
-++    hook_params[:access_token] = api_key if api_key.present?
++
++    hook_params[:access_token] = api_key if api_key.present?
 +    hook_params
 +  end
  end
@@ -86,18 +103,22 @@ index 000000000..192058492
 +++ b/app/javascript/dashboard/api/integrations/eyePhoto.js
 @@ -0,0 +1,17 @@
 +/* global axios */
-++import ApiClient from '../ApiClient';
-++class EyePhotoAPI extends ApiClient {
++
++import ApiClient from '../ApiClient';
++
++class EyePhotoAPI extends ApiClient {
 +  constructor() {
 +    super('integrations/eye_photo', { accountScoped: true });
 +  }
-++  getStudios(conversationId, contactId) {
++
++  getStudios(conversationId, contactId) {
 +    return axios.get(`${this.url}/show`, {
 +      params: { conversation_id: conversationId, contact_id: contactId },
 +    });
 +  }
 +}
-++export default new EyePhotoAPI();
++
++export default new EyePhotoAPI();
 diff --git a/app/javascript/dashboard/api/integrations/firebaseProfile.js b/app/javascript/dashboard/api/integrations/firebaseProfile.js
 new file mode 100644
 index 000000000..8bd27f85e
@@ -105,26 +126,32 @@ index 000000000..8bd27f85e
 +++ b/app/javascript/dashboard/api/integrations/firebaseProfile.js
 @@ -0,0 +1,17 @@
 +/* global axios */
-++import ApiClient from '../ApiClient';
-++class FirebaseProfileAPI extends ApiClient {
++
++import ApiClient from '../ApiClient';
++
++class FirebaseProfileAPI extends ApiClient {
 +  constructor() {
 +    super('integrations/firebase_profile', { accountScoped: true });
 +  }
-++  getProfile(conversationId, contactId) {
++
++  getProfile(conversationId, contactId) {
 +    return axios.get(`${this.url}/show`, {
 +      params: { conversation_id: conversationId, contact_id: contactId },
 +    });
 +  }
 +}
-++export default new FirebaseProfileAPI();
++
++export default new FirebaseProfileAPI();
 diff --git a/app/javascript/dashboard/components-next/NewConversation/ComposeConversation.vue b/app/javascript/dashboard/components-next/NewConversation/ComposeConversation.vue
 index 02a00c703..ee36be617 100644
 --- a/app/javascript/dashboard/components-next/NewConversation/ComposeConversation.vue
 +++ b/app/javascript/dashboard/components-next/NewConversation/ComposeConversation.vue
 @@ -204 +204,5 @@ const onPopoverHide = () => {
 +const openCompose = () => popoverRef.value?.show();
-++defineExpose({ openCompose });
-+ watch(
++
++defineExpose({ openCompose });
++
+ watch(
 diff --git a/app/javascript/dashboard/components/widgets/conversation/EyePhotoData.vue b/app/javascript/dashboard/components/widgets/conversation/EyePhotoData.vue
 new file mode 100644
 index 000000000..a3810f4aa
@@ -138,12 +165,14 @@ index 000000000..a3810f4aa
 +import { useStore } from 'dashboard/composables/store';
 +import { useAlert } from 'dashboard/composables';
 +import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
-++const props = defineProps({
++
++const props = defineProps({
 +  conversationId: { type: [Number, String], required: true },
 +  contactId: { type: [Number, String], required: true },
 +  email: { type: String, default: '' },
 +});
-++const data = ref(null);
++
++const data = ref(null);
 +const loading = ref(false);
 +const error = ref('');
 +const showUsers = ref(false);
@@ -153,26 +182,32 @@ index 000000000..a3810f4aa
 +const preparingConversationFor = ref('');
 +const store = useStore();
 +let latestRequestId = 0;
-++const studios = computed(() => data.value?.studios || []);
++
++const studios = computed(() => data.value?.studios || []);
 +const studioPhotos = studio =>
 +  Number(studio.photos_count || 0).toLocaleString();
 +const selectedUsers = computed(() => selectedStudio.value?.users || []);
 +const studioAdminUrl = studio =>
 +  `https://eye.photo/admin/studios/${studio.id}/login`;
-++const openUsers = studio => {
++
++const openUsers = studio => {
 +  selectedStudio.value = studio;
 +  showUsers.value = true;
 +};
-++const emailKey = email => email.toLowerCase();
-++const setComposeConversationRef = (email, component) => {
++
++const emailKey = email => email.toLowerCase();
++
++const setComposeConversationRef = (email, component) => {
 +  const key = emailKey(email);
 +  if (component) composeConversationRefs.value[key] = component;
 +  else delete composeConversationRefs.value[key];
 +};
-++const prepareConversation = async user => {
++
++const prepareConversation = async user => {
 +  const key = emailKey(user.email);
 +  if (chatwootContactIds.value[key]) return;
-++  preparingConversationFor.value = key;
++
++  preparingConversationFor.value = key;
 +  try {
 +    const {
 +      data: { payload = [] },
@@ -185,7 +220,8 @@ index 000000000..a3810f4aa
 +        name: user.name || user.email.split('@')[0],
 +        email: user.email,
 +      }));
-++    await store.dispatch('contacts/setContact', contact);
++
++    await store.dispatch('contacts/setContact', contact);
 +    await store.dispatch('contacts/fetchContactableInbox', contact.id);
 +    chatwootContactIds.value = {
 +      ...chatwootContactIds.value,
@@ -201,17 +237,20 @@ index 000000000..a3810f4aa
 +    }
 +  }
 +};
-++const loadStudios = async () => {
++
++const loadStudios = async () => {
 +  const requestId = ++latestRequestId;
 +  data.value = null;
 +  error.value = '';
 +  selectedStudio.value = null;
 +  showUsers.value = false;
-++  if (!props.email) {
++
++  if (!props.email) {
 +    loading.value = false;
 +    return;
 +  }
-++  loading.value = true;
++
++  loading.value = true;
 +  try {
 +    const { data: response } = await EyePhotoAPI.getStudios(
 +      props.conversationId,
@@ -227,11 +266,13 @@ index 000000000..a3810f4aa
 +    if (requestId === latestRequestId) loading.value = false;
 +  }
 +};
-++watch(() => [props.conversationId, props.contactId, props.email], loadStudios, {
++
++watch(() => [props.conversationId, props.contactId, props.email], loadStudios, {
 +  immediate: true,
 +});
 +</script>
-++<template>
++
++<template>
 +  <div class="px-4 py-3 text-sm text-n-slate-12">
 +    <div class="mb-3 flex items-center justify-between gap-3">
 +      <span />
@@ -245,7 +286,8 @@ index 000000000..a3810f4aa
 +        {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.REFRESH') }}
 +      </button>
 +    </div>
-++    <p v-if="!email" class="text-n-slate-11">
++
++    <p v-if="!email" class="text-n-slate-11">
 +      {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.NO_EMAIL') }}
 +    </p>
 +    <p v-else-if="loading && !data" class="text-n-slate-11">
@@ -255,7 +297,8 @@ index 000000000..a3810f4aa
 +    <p v-else-if="!studios.length" class="text-n-slate-11">
 +      {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.NOT_FOUND') }}
 +    </p>
-++    <div v-else class="space-y-3">
++
++    <div v-else class="space-y-3">
 +      <article
 +        v-for="studio in studios"
 +        :key="studio.id"
@@ -283,7 +326,8 @@ index 000000000..a3810f4aa
 +            <p class="mt-0.5">{{ studio.plan?.name || '—' }}</p>
 +          </div>
 +        </div>
-++        <div class="space-y-2 border-t border-n-weak bg-n-alpha-2 px-3 py-2">
++
++        <div class="space-y-2 border-t border-n-weak bg-n-alpha-2 px-3 py-2">
 +          <div class="flex items-center justify-between gap-3">
 +            <span class="text-xs text-n-slate-11">
 +              {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.PHOTOS') }}:
@@ -297,7 +341,8 @@ index 000000000..a3810f4aa
 +            <span class="font-semibold">{{ studio.users?.length || 0 }}</span>
 +          </div>
 +        </div>
-++        <div class="flex gap-2 border-t border-n-weak p-3">
++
++        <div class="flex gap-2 border-t border-n-weak p-3">
 +          <button
 +            class="flex-1 rounded border border-n-weak px-3 py-2 text-xs font-medium text-n-brand hover:bg-n-alpha-2 disabled:cursor-not-allowed disabled:opacity-60"
 +            :disabled="!studio.users?.length"
@@ -317,7 +362,8 @@ index 000000000..a3810f4aa
 +        </div>
 +      </article>
 +    </div>
-++    <woot-modal
++
++    <woot-modal
 +      v-model:show="showUsers"
 +      :on-close="() => (showUsers = false)"
 +      size="modal-small"
@@ -382,22 +428,26 @@ index 000000000..007a83bf0
 +<script setup>
 +import { computed, onMounted, ref } from 'vue';
 +import FirebaseProfileAPI from 'dashboard/api/integrations/firebaseProfile';
-++const props = defineProps({
++
++const props = defineProps({
 +  conversationId: { type: [Number, String], required: true },
 +  contactId: { type: [Number, String], required: true },
 +  email: { type: String, default: '' },
 +});
-++const profile = ref(null);
++
++const profile = ref(null);
 +const loading = ref(false);
 +const error = ref('');
 +const showTransactions = ref(false);
 +const transactionTitle = ref('');
 +const selectedTransactions = ref([]);
-++const credits = computed(() => profile.value?.credits?.data || {});
++
++const credits = computed(() => profile.value?.credits?.data || {});
 +const subscription = computed(() => profile.value?.subscription?.data || {});
 +const creditTransactions = computed(() => credits.value.transactions || []);
 +const subscriptionTransactions = computed(() => subscription.value.transactions || []);
-++const checkProfile = async () => {
++
++const checkProfile = async () => {
 +  if (!props.email) return;
 +  loading.value = true;
 +  error.value = '';
@@ -410,33 +460,40 @@ index 000000000..007a83bf0
 +    loading.value = false;
 +  }
 +};
-++const openTransactions = (title, transactions) => {
++
++const openTransactions = (title, transactions) => {
 +  transactionTitle.value = title;
 +  selectedTransactions.value = [...transactions].sort(
 +    (a, b) => (b.timestamp_millis || b.purchaseDateMillis || 0) - (a.timestamp_millis || a.purchaseDateMillis || 0)
 +  );
 +  showTransactions.value = true;
 +};
-++const transactionDate = transaction => {
++
++const transactionDate = transaction => {
 +  const value = transaction.timestamp || transaction.purchaseDate || transaction.timestamp_millis || transaction.purchaseDateMillis;
 +  return value ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '—';
 +};
-++const transactionLabel = transaction => transaction.reason || transaction.pack_marketing_title || transaction.productId || transaction.productIdentifier || transaction.product_id || transaction.description || '—';
++
++const transactionLabel = transaction => transaction.reason || transaction.pack_marketing_title || transaction.productId || transaction.productIdentifier || transaction.product_id || transaction.description || '—';
 +const transactionPlatform = transaction => (transaction.platform ? transaction.platform.toUpperCase() : '—');
-++onMounted(checkProfile);
++
++onMounted(checkProfile);
 +</script>
-++<template>
++
++<template>
 +  <div class="px-4 py-3 text-sm text-n-slate-12">
 +    <p v-if="!email" class="text-n-slate-11">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.NO_EMAIL') }}</p>
 +    <p v-else-if="loading" class="text-n-slate-11">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.LOADING') }}</p>
 +    <p v-else-if="error" class="text-n-ruby-11">{{ error }}</p>
 +    <p v-else-if="profile && !profile.auth?.found" class="text-n-slate-11">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.NOT_FOUND') }}</p>
-++    <div v-else-if="profile" class="space-y-4">
++
++    <div v-else-if="profile" class="space-y-4">
 +      <div class="rounded-lg bg-n-alpha-2 p-3">
 +        <p class="text-xs text-n-slate-11">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.FIREBASE_ID') }}</p>
 +        <p class="mt-1 break-all font-mono text-xs">{{ profile.auth.uid }}</p>
 +      </div>
-++      <div class="grid grid-cols-2 gap-2">
++
++      <div class="grid grid-cols-2 gap-2">
 +        <div class="rounded-lg bg-n-alpha-2 p-3">
 +          <p class="text-xs text-n-slate-11">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.AVAILABLE_CREDITS') }}</p>
 +          <p class="mt-1 text-xl font-semibold">{{ credits.available_credits ?? '—' }}</p>
@@ -446,11 +503,13 @@ index 000000000..007a83bf0
 +          <p class="mt-1 text-xl font-semibold">{{ credits.used_credits ?? '—' }}</p>
 +        </div>
 +      </div>
-++      <button v-if="creditTransactions.length" class="w-full rounded-lg border border-n-weak px-3 py-2 text-left hover:bg-n-alpha-2" @click="openTransactions($t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.CREDIT_TRANSACTIONS'), creditTransactions)">
++
++      <button v-if="creditTransactions.length" class="w-full rounded-lg border border-n-weak px-3 py-2 text-left hover:bg-n-alpha-2" @click="openTransactions($t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.CREDIT_TRANSACTIONS'), creditTransactions)">
 +        <span class="font-medium">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.CREDIT_TRANSACTIONS') }}</span>
 +        <span class="float-right text-n-slate-11">{{ creditTransactions.length }}</span>
 +      </button>
-++      <div class="rounded-lg bg-n-alpha-2 p-3">
++
++      <div class="rounded-lg bg-n-alpha-2 p-3">
 +        <div class="flex items-center justify-between gap-2">
 +          <p class="text-xs text-n-slate-11">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.CURRENT_SUBSCRIPTION') }}</p>
 +          <span class="rounded-full bg-n-alpha-3 px-2 py-0.5 text-xs font-medium">{{ subscription.status || '—' }}</span>
@@ -458,12 +517,14 @@ index 000000000..007a83bf0
 +        <p class="mt-2 font-medium">{{ subscription.product_id || '—' }}</p>
 +        <p v-if="subscription.permissions" class="mt-1 text-xs text-n-slate-11">{{ subscription.permissions.photos_used_in_current_period ?? 0 }} / {{ subscription.permissions.photos_limit_per_period ?? '—' }} {{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.PHOTOS_THIS_PERIOD') }}</p>
 +      </div>
-++      <button v-if="subscriptionTransactions.length" class="w-full rounded-lg border border-n-weak px-3 py-2 text-left hover:bg-n-alpha-2" @click="openTransactions($t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.SUBSCRIPTION_TRANSACTIONS'), subscriptionTransactions)">
++
++      <button v-if="subscriptionTransactions.length" class="w-full rounded-lg border border-n-weak px-3 py-2 text-left hover:bg-n-alpha-2" @click="openTransactions($t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.SUBSCRIPTION_TRANSACTIONS'), subscriptionTransactions)">
 +        <span class="font-medium">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.SUBSCRIPTION_TRANSACTIONS') }}</span>
 +        <span class="float-right text-n-slate-11">{{ subscriptionTransactions.length }}</span>
 +      </button>
 +    </div>
-++    <woot-modal v-model:show="showTransactions" :on-close="() => (showTransactions = false)" size="modal-big">
++
++    <woot-modal v-model:show="showTransactions" :on-close="() => (showTransactions = false)" size="modal-big">
 +      <woot-modal-header :header-title="transactionTitle" />
 +      <div class="max-h-[65vh] overflow-y-auto px-6 pb-6">
 +        <div v-for="transaction in selectedTransactions" :key="transaction.transaction_id || transaction.transactionIdentifier || transaction.timestamp_millis || transaction.purchaseDateMillis" class="border-b border-n-weak py-3 last:border-0">
@@ -665,7 +726,8 @@ index 893a08532..fb618e583 100644
 +      const selectableInboxes = this.isIntegrationDialogflow
 +        ? this.dialogFlowEnabledInboxes
 +        : this.allInboxes;
-++      return selectableInboxes
++
++      return selectableInboxes
          .filter(inbox => {
 -          if (!this.isIntegrationDialogflow) {
 +          if (!this.requiresUniqueInbox) {
@@ -714,7 +776,8 @@ index a3396951f..a4983a06a 100644
 +  def eye_photo?
 +    app_id == 'eye_photo'
 +  end
-+   def notion?
++
+   def notion?
 diff --git a/app/services/eye_photo_client.rb b/app/services/eye_photo_client.rb
 new file mode 100644
 index 000000000..960cb2c05
@@ -724,32 +787,41 @@ index 000000000..960cb2c05
 +require 'json'
 +require 'net/http'
 +require 'uri'
-++class EyePhotoClient
++
++class EyePhotoClient
 +  class UnavailableError < StandardError; end
-++  LOOKUP_PATH = '/api/admin/studios/lookup'.freeze
-++  def lookup(email:, api_key:)
++
++  LOOKUP_PATH = '/api/admin/studios/lookup'.freeze
++
++  def lookup(email:, api_key:)
 +    raise UnavailableError, 'Eye.photo is not configured for this inbox' if api_key.blank?
-++    uri = URI.join(base_url, LOOKUP_PATH)
++
++    uri = URI.join(base_url, LOOKUP_PATH)
 +    request = Net::HTTP::Post.new(uri)
 +    request['Authorization'] = "Token #{api_key}"
 +    request['Content-Type'] = 'application/json'
 +    request.body = { email: email }.to_json
-++    response = Net::HTTP.start(
++
++    response = Net::HTTP.start(
 +      uri.host,
 +      uri.port,
 +      use_ssl: uri.scheme == 'https',
 +      open_timeout: 2,
 +      read_timeout: 8,
 +    ) { |http| http.request(request) }
-++    unless response.is_a?(Net::HTTPSuccess)
++
++    unless response.is_a?(Net::HTTPSuccess)
 +      raise UnavailableError, 'Eye.photo could not retrieve studio data'
 +    end
-++    JSON.parse(response.body)
++
++    JSON.parse(response.body)
 +  rescue SocketError, Timeout::Error, Errno::ECONNREFUSED, JSON::ParserError => e
 +    raise UnavailableError, "Eye.photo could not retrieve studio data: #{e.message}"
 +  end
-++  private
-++  def base_url
++
++  private
++
++  def base_url
 +    ENV.fetch('EYE_PHOTO_API_URL', 'https://eye.photo')
 +  end
 +end
@@ -762,29 +834,36 @@ index 000000000..c87b471b9
 +require 'json'
 +require 'net/http'
 +require 'uri'
-++class FirebaseProfileGateway
++
++class FirebaseProfileGateway
 +  class UnavailableError < StandardError; end
-++  def lookup(email)
++
++  def lookup(email)
 +    uri = URI.join(url, '/v1/profile')
 +    request = Net::HTTP::Post.new(uri)
 +    request['Authorization'] = "Bearer #{token}"
 +    request['Content-Type'] = 'application/json'
 +    request.body = { email: email }.to_json
-++    response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', open_timeout: 2, read_timeout: 8) do |http|
++
++    response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', open_timeout: 2, read_timeout: 8) do |http|
 +      http.request(request)
 +    end
 +    raise UnavailableError, 'Firebase profile service is unavailable' unless response.is_a?(Net::HTTPSuccess)
-++    JSON.parse(response.body)
++
++    JSON.parse(response.body)
 +  rescue SocketError, Timeout::Error, Errno::ECONNREFUSED, JSON::ParserError => e
 +    raise UnavailableError, "Firebase profile service is unavailable: #{e.message}"
 +  end
-++  private
-++  def url
++
++  private
++
++  def url
 +    ENV.fetch('FIREBASE_PROFILE_GATEWAY_URL')
 +  rescue KeyError
 +    raise UnavailableError, 'Firebase profile integration is not configured'
 +  end
-++  def token
++
++  def token
 +    ENV.fetch('FIREBASE_PROFILE_GATEWAY_TOKEN')
 +  rescue KeyError
 +    raise UnavailableError, 'Firebase profile integration is not configured'
@@ -845,7 +924,8 @@ index 9ef01ed30..c15568681 100644
 +  hook_type: inbox
 +  allow_multiple_hooks: true
 +  settings_form_schema: []
-++eye_photo:
++
++eye_photo:
 +  id: eye_photo
 +  logo: eye_photo.png
 +  i18n_key: eye_photo
@@ -867,7 +947,8 @@ index 9ef01ed30..c15568681 100644
 +      },
 +    ]
 +  visible_properties: []
-+ leadsquared:
++
+ leadsquared:
 diff --git a/config/locales/en.yml b/config/locales/en.yml
 index 826894466..062d513b0 100644
 --- a/config/locales/en.yml
@@ -899,38 +980,49 @@ index 000000000..2e2b075bd
 +++ b/spec/controllers/api/v1/accounts/integrations/eye_photo_controller_spec.rb
 @@ -0,0 +1,47 @@
 +require 'rails_helper'
-++RSpec.describe 'Eye.photo Integration API', type: :request do
++
++RSpec.describe 'Eye.photo Integration API', type: :request do
 +  let(:account) { create(:account) }
 +  let(:agent) { create(:user, account: account, role: :agent) }
 +  let(:inbox) { create(:inbox, account: account) }
 +  let(:contact) { create(:contact, account: account, email: 'owner@example.com') }
 +  let(:conversation) { create(:conversation, account: account, inbox: inbox, contact: contact) }
 +  let(:client) { instance_double(EyePhotoClient) }
-++  before do
++
++  before do
 +    create(:integrations_hook, account: account, inbox: inbox, app_id: 'eye_photo', access_token: 'admin-api-key')
 +    allow(EyePhotoClient).to receive(:new).and_return(client)
 +  end
-++  describe 'GET /api/v1/accounts/:account_id/integrations/eye_photo/show' do
++
++  describe 'GET /api/v1/accounts/:account_id/integrations/eye_photo/show' do
 +    it 'returns studios associated with the conversation contact email' do
 +      payload = { 'email' => contact.email, 'studios' => [{ 'id' => 42, 'name' => 'Example Studio', 'photos_count' => 128 }] }
 +      allow(client).to receive(:lookup).with(email: contact.email, api_key: 'admin-api-key').and_return(payload)
-++      get "/api/v1/accounts/#{account.id}/integrations/eye_photo/show",
++
++      get "/api/v1/accounts/#{account.id}/integrations/eye_photo/show",
 +          params: { conversation_id: conversation.id, contact_id: contact.id }, headers: agent.create_new_auth_token, as: :json
-++      expect(response).to have_http_status(:ok)
++
++      expect(response).to have_http_status(:ok)
 +      expect(response.parsed_body.dig('studios', 0, 'name')).to eq('Example Studio')
 +    end
-++    it 'does not expose a key configured for another inbox' do
++
++    it 'does not expose a key configured for another inbox' do
 +      other_inbox = create(:inbox, account: account)
 +      other_conversation = create(:conversation, account: account, inbox: other_inbox, contact: contact)
-++      get "/api/v1/accounts/#{account.id}/integrations/eye_photo/show",
++
++      get "/api/v1/accounts/#{account.id}/integrations/eye_photo/show",
 +          params: { conversation_id: other_conversation.id, contact_id: contact.id }, headers: agent.create_new_auth_token, as: :json
-++      expect(response).to have_http_status(:not_found)
++
++      expect(response).to have_http_status(:not_found)
 +    end
-++    it 'returns an unavailable response when Eye.photo cannot be reached' do
++
++    it 'returns an unavailable response when Eye.photo cannot be reached' do
 +      allow(client).to receive(:lookup).and_raise(EyePhotoClient::UnavailableError, 'Eye.photo could not retrieve studio data')
-++      get "/api/v1/accounts/#{account.id}/integrations/eye_photo/show",
++
++      get "/api/v1/accounts/#{account.id}/integrations/eye_photo/show",
 +          params: { conversation_id: conversation.id, contact_id: contact.id }, headers: agent.create_new_auth_token, as: :json
-++      expect(response).to have_http_status(:bad_gateway)
++
++      expect(response).to have_http_status(:bad_gateway)
 +    end
 +  end
 +end
@@ -941,36 +1033,46 @@ index 000000000..388556d24
 +++ b/spec/controllers/api/v1/accounts/integrations/firebase_profile_controller_spec.rb
 @@ -0,0 +1,44 @@
 +require 'rails_helper'
-++RSpec.describe 'Firebase Profile Integration API', type: :request do
++
++RSpec.describe 'Firebase Profile Integration API', type: :request do
 +  let(:account) { create(:account) }
 +  let(:agent) { create(:user, account: account, role: :agent) }
 +  let(:inbox) { create(:inbox, account: account) }
 +  let(:contact) { create(:contact, account: account, email: 'customer@example.com') }
 +  let(:conversation) { create(:conversation, account: account, inbox: inbox, contact: contact) }
 +  let(:gateway) { instance_double(FirebaseProfileGateway) }
-++  before do
++
++  before do
 +    create(:integrations_hook, account: account, inbox: inbox, app_id: 'firebase_profile')
 +    allow(FirebaseProfileGateway).to receive(:new).and_return(gateway)
 +  end
-++  describe 'GET /api/v1/accounts/:account_id/integrations/firebase_profile/show' do
++
++  describe 'GET /api/v1/accounts/:account_id/integrations/firebase_profile/show' do
 +    it 'returns the Firebase profile for a contact in an enabled inbox' do
 +      allow(gateway).to receive(:lookup).with(contact.email).and_return({ 'auth' => { 'found' => true, 'uid' => 'uid-1' } })
-++      get "/api/v1/accounts/#{account.id}/integrations/firebase_profile/show",
++
++      get "/api/v1/accounts/#{account.id}/integrations/firebase_profile/show",
 +          params: { conversation_id: conversation.id, contact_id: contact.id }, headers: agent.create_new_auth_token, as: :json
-++      expect(response).to have_http_status(:ok)
++
++      expect(response).to have_http_status(:ok)
 +      expect(response.parsed_body.dig('auth', 'uid')).to eq('uid-1')
 +    end
-++    it 'does not expose the integration from an inbox without its hook' do
++
++    it 'does not expose the integration from an inbox without its hook' do
 +      other_inbox = create(:inbox, account: account)
 +      other_conversation = create(:conversation, account: account, inbox: other_inbox, contact: contact)
-++      get "/api/v1/accounts/#{account.id}/integrations/firebase_profile/show",
++
++      get "/api/v1/accounts/#{account.id}/integrations/firebase_profile/show",
 +          params: { conversation_id: other_conversation.id, contact_id: contact.id }, headers: agent.create_new_auth_token, as: :json
-++      expect(response).to have_http_status(:not_found)
++
++      expect(response).to have_http_status(:not_found)
 +    end
-++    it 'requires authentication' do
++
++    it 'requires authentication' do
 +      get "/api/v1/accounts/#{account.id}/integrations/firebase_profile/show",
 +          params: { conversation_id: conversation.id, contact_id: contact.id }, as: :json
-++      expect(response).to have_http_status(:unauthorized)
++
++      expect(response).to have_http_status(:unauthorized)
 +    end
 +  end
 +end
@@ -981,27 +1083,33 @@ index 000000000..358ee4748
 +++ b/spec/controllers/api/v1/accounts/integrations/hooks_controller_eye_photo_spec.rb
 @@ -0,0 +1,31 @@
 +require 'rails_helper'
-++RSpec.describe Api::V1::Accounts::Integrations::HooksController, type: :request do
++
++RSpec.describe Api::V1::Accounts::Integrations::HooksController, type: :request do
 +  let(:account) { create(:account) }
 +  let(:administrator) { create(:user, account: account, role: :administrator) }
 +  let(:inbox) { create(:inbox, account: account) }
-++  it 'stores the Eye.photo API key in the hook token instead of JSON settings' do
++
++  it 'stores the Eye.photo API key in the hook token instead of JSON settings' do
 +    post api_v1_account_integrations_hooks_url(account_id: account.id),
 +         params: { app_id: 'eye_photo', inbox_id: inbox.id, settings: { api_key: 'eye-photo-admin-key' } },
 +         headers: administrator.create_new_auth_token,
 +         as: :json
-++    expect(response).to have_http_status(:success)
++
++    expect(response).to have_http_status(:success)
 +    hook = account.hooks.find_by!(app_id: 'eye_photo', inbox_id: inbox.id)
 +    expect(hook.access_token).to eq('eye-photo-admin-key')
 +    expect(hook.settings).to eq({})
 +    expect(response.parsed_body.dig('settings', 'api_key')).to be_nil
 +  end
-++  it 'does not allow a second Eye.photo key for the same inbox' do
++
++  it 'does not allow a second Eye.photo key for the same inbox' do
 +    create(:integrations_hook, account: account, inbox: inbox, app_id: 'eye_photo')
-++    post api_v1_account_integrations_hooks_url(account_id: account.id),
++
++    post api_v1_account_integrations_hooks_url(account_id: account.id),
 +         params: { app_id: 'eye_photo', inbox_id: inbox.id, settings: { api_key: 'another-key' } },
 +         headers: administrator.create_new_auth_token,
 +         as: :json
-++    expect(response).to have_http_status(:unprocessable_entity)
++
++    expect(response).to have_http_status(:unprocessable_entity)
 +  end
 +end
