@@ -6,6 +6,8 @@ services:
     build:
       context: ${CHATWOOT_BUILD_CONTEXT:?set CHATWOOT_BUILD_CONTEXT}
       dockerfile: deployment/eyepic/Dockerfile.chatwoot-firebase-profile
+      args:
+        CHATWOOT_VERSION: ${CHATWOOT_VERSION:?set CHATWOOT_VERSION}
     env_file: .env
     volumes:
       - storage-data:/app/storage
@@ -29,6 +31,8 @@ services:
     build:
       context: ${CHATWOOT_BUILD_CONTEXT:?set CHATWOOT_BUILD_CONTEXT}
       dockerfile: deployment/eyepic/Dockerfile.chatwoot-firebase-profile
+      args:
+        CHATWOOT_VERSION: ${CHATWOOT_VERSION:?set CHATWOOT_VERSION}
     env_file: .env
     volumes:
       - storage-data:/app/storage
