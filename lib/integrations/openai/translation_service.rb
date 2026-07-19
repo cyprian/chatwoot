@@ -22,8 +22,14 @@ class Integrations::Openai::TranslationService
   private
 
   def api_key
-    InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_API_KEY')&.value.presence ||
+    openai_hook.settings['api_key'].presence ||
       raise(Error, 'OpenAI translation is not configured.')
+  end
+
+  def openai_hook
+    @openai_hook ||= message.account.hooks.enabled.find_by!(app_id: 'openai')
+  rescue ActiveRecord::RecordNotFound
+    raise Error, 'OpenAI translation is not configured.'
   end
 
   def api_base
