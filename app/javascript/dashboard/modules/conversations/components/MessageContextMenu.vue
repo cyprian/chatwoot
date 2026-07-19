@@ -6,12 +6,8 @@ import ContextMenu from 'dashboard/components/ui/ContextMenu.vue';
 import AddCannedModal from 'dashboard/routes/dashboard/settings/canned/AddCanned.vue';
 import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
-import { parseAPIErrorResponse } from 'dashboard/store/utils/api';
 import { conversationUrl, frontendURL } from '../../../helper/URLHelper';
-import {
-  ACCOUNT_EVENTS,
-  CONVERSATION_EVENTS,
-} from '../../../helper/AnalyticsHelper/events';
+import { ACCOUNT_EVENTS } from '../../../helper/AnalyticsHelper/events';
 import MenuItem from '../../../components/widgets/conversation/contextMenu/menuItem.vue';
 import { useTrack } from 'dashboard/composables';
 import NextButton from 'dashboard/components-next/button/Button.vue';
@@ -63,9 +59,7 @@ export default {
   },
   computed: {
     ...mapGetters({
-      getAccount: 'accounts/getAccount',
       currentAccountId: 'getCurrentAccountId',
-      getUISettings: 'getUISettings',
     }),
     plainTextContent() {
       return this.getPlainText(this.messageContent);
@@ -119,22 +113,6 @@ export default {
     },
     handleClose(e) {
       this.$emit('close', e);
-    },
-    async handleTranslate() {
-      const { locale: accountLocale } = this.getAccount(this.currentAccountId);
-      const agentLocale = this.getUISettings?.locale;
-      const targetLanguage = agentLocale || accountLocale || 'en';
-      try {
-        await this.$store.dispatch('translateMessage', {
-          conversationId: this.conversationId,
-          messageId: this.messageId,
-          targetLanguage,
-        });
-        useTrack(CONVERSATION_EVENTS.TRANSLATE_A_MESSAGE);
-      } catch (error) {
-        useAlert(parseAPIErrorResponse(error));
-      }
-      this.handleClose();
     },
     handleReplyTo() {
       this.$emit('replyTo', this.message);

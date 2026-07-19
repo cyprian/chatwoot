@@ -37,24 +37,14 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   end
 
   def translate
-    return head :ok if already_translated_content_available?
+    translated_content = message.translations&.fetch('en', nil)
+    translated_content ||= Integrations::Openai::TranslationService.new(message: message).perform
 
-    translated_content = Integrations::GoogleTranslate::ProcessorService.new(
-      message: message,
-      target_language: permitted_params[:target_language]
-    ).perform
-
-    if translated_content.present?
-      translations = {}
-      translations[permitted_params[:target_language]] = translated_content
-      translations = message.translations.merge!(translations) if message.translations.present?
-      message.update!(translations: translations)
-    end
-
-    render json: { content: translated_content }
-  rescue Google::Cloud::Error => e
-    # `details` carries the clean human message; `message` includes gRPC debug noise
-    render_could_not_create_error(e.details.presence || e.message)
+    message.update!(translations: message.translations.to_h.merge('en' => translated_content))
+    @message = message
+    render :update
+  rescue Integrations::Openai::TranslationService::Error => e
+    render_could_not_create_error(e.message)
   end
 
   private
@@ -68,11 +58,7 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   end
 
   def permitted_params
-    params.permit(:id, :target_language, :status, :external_error)
-  end
-
-  def already_translated_content_available?
-    message.translations.present? && message.translations[permitted_params[:target_language]].present?
+    params.permit(:id, :status, :external_error)
   end
 
   # API inbox check
