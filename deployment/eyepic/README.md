@@ -15,6 +15,9 @@ Chatwoot installation at `https://support.eyepic.io`.
 Chatwoot is bound only to `127.0.0.1:3001`. Caddy terminates TLS and routes
 `support.eyepic.io` to it. The companion CRM remains on `127.0.0.1:3000`.
 
+For a repeatable guide to building further inbox-sidebar integrations, see
+[INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md).
+
 ## Firebase Profile inbox sidebar
 
 This deployment builds the pinned `eyepic/chatwoot-firebase-profile` image.
