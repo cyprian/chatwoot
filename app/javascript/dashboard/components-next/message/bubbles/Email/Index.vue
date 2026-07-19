@@ -1,9 +1,12 @@
 <script setup>
 import { computed, useTemplateRef, ref, onMounted } from 'vue';
+import { useStore } from 'vuex';
 import { Letter } from 'vue-letter';
 import { sanitizeTextForRender } from '@chatwoot/utils';
 import { allowedCssProperties } from 'lettersanitizer';
 
+import { useAlert } from 'dashboard/composables';
+import { parseAPIErrorResponse } from 'dashboard/store/utils/api';
 import Icon from 'next/icon/Icon.vue';
 import { EmailQuoteExtractor } from 'dashboard/helper/emailQuoteExtractor.js';
 import FormattedContent from 'next/message/bubbles/Text/FormattedContent.vue';
@@ -11,18 +14,21 @@ import BaseBubble from 'next/message/bubbles/Base.vue';
 import AttachmentChips from 'next/message/chips/AttachmentChips.vue';
 import EmailMeta from './EmailMeta.vue';
 import TranslationToggle from 'dashboard/components-next/message/TranslationToggle.vue';
+import NextButton from 'dashboard/components-next/button/Button.vue';
 
 import { useMessageContext } from '../../provider.js';
 import { MESSAGE_TYPES } from 'next/message/constants.js';
 import { useTranslations } from 'dashboard/composables/useTranslations';
 
-const { content, contentAttributes, attachments, messageType } =
+const { id, content, contentAttributes, attachments, conversationId, messageType } =
   useMessageContext();
+const store = useStore();
 
 const isExpandable = ref(false);
 const isExpanded = ref(false);
 const showQuotedMessage = ref(false);
 const renderOriginal = ref(false);
+const isTranslating = ref(false);
 const contentContainer = useTemplateRef('contentContainer');
 
 onMounted(() => {
@@ -34,6 +40,10 @@ const isIncoming = computed(() => !isOutgoing.value);
 
 const { hasTranslations, translationContent } =
   useTranslations(contentAttributes);
+const englishTranslation = computed(
+  () => contentAttributes.value?.translations?.en
+);
+const hasEnglishTranslation = computed(() => !!englishTranslation.value);
 
 const originalEmailText = computed(() => {
   const text =
@@ -56,6 +66,10 @@ const hasEmailContent = computed(() => {
 
 const messageContent = computed(() => {
   // If translations exist and we're showing translations (not original)
+  if (hasEnglishTranslation.value && !renderOriginal.value) {
+    return englishTranslation.value;
+  }
+
   if (hasTranslations.value && !renderOriginal.value) {
     return translationContent.value;
   }
@@ -65,6 +79,10 @@ const messageContent = computed(() => {
 
 const textToShow = computed(() => {
   // If translations exist and we're showing translations (not original)
+  if (hasEnglishTranslation.value && !renderOriginal.value) {
+    return englishTranslation.value;
+  }
+
   if (hasTranslations.value && !renderOriginal.value) {
     return translationContent.value;
   }
@@ -74,6 +92,10 @@ const textToShow = computed(() => {
 
 const fullHTML = computed(() => {
   // If translations exist and we're showing translations (not original)
+  if (hasEnglishTranslation.value && !renderOriginal.value) {
+    return englishTranslation.value;
+  }
+
   if (hasTranslations.value && !renderOriginal.value) {
     return translationContent.value;
   }
@@ -99,6 +121,24 @@ const translationKeySuffix = computed(() => {
 
 const handleSeeOriginal = () => {
   renderOriginal.value = !renderOriginal.value;
+};
+
+const shouldShowTranslateAction = computed(() => {
+  return isIncoming.value && !hasEnglishTranslation.value;
+});
+
+const translateToEnglish = async () => {
+  isTranslating.value = true;
+  try {
+    await store.dispatch('translateMessage', {
+      conversationId: conversationId.value,
+      messageId: id.value,
+    });
+  } catch (error) {
+    useAlert(parseAPIErrorResponse(error));
+  } finally {
+    isTranslating.value = false;
+  }
 };
 </script>
 
@@ -195,6 +235,18 @@ const handleSeeOriginal = () => {
         </button>
       </div>
     </section>
+    <NextButton
+      v-if="shouldShowTranslateAction"
+      ghost
+      slate
+      xs
+      icon="i-lucide-languages"
+      :is-loading="isTranslating"
+      class="self-start ml-2 mb-2"
+      @click="translateToEnglish"
+    >
+      {{ $t('CONVERSATION.TRANSLATE_TO_ENGLISH') }}
+    </NextButton>
     <TranslationToggle
       v-if="hasTranslations"
       class="py-2 px-3"

@@ -21,6 +21,7 @@ COPY app/controllers/api/v1/accounts/conversations/messages_controller.rb /app/a
 COPY app/javascript/dashboard/api/inbox/message.js /app/app/javascript/dashboard/api/inbox/message.js
 COPY app/javascript/dashboard/components-next/message/Message.vue /app/app/javascript/dashboard/components-next/message/Message.vue
 COPY app/javascript/dashboard/components-next/message/bubbles/Text/Index.vue /app/app/javascript/dashboard/components-next/message/bubbles/Text/Index.vue
+COPY app/javascript/dashboard/components-next/message/bubbles/Email/Index.vue /app/app/javascript/dashboard/components-next/message/bubbles/Email/Index.vue
 COPY app/javascript/dashboard/i18n/locale/en/conversation.json /app/app/javascript/dashboard/i18n/locale/en/conversation.json
 COPY app/javascript/dashboard/store/modules/conversations/actions/messageTranslateActions.js /app/app/javascript/dashboard/store/modules/conversations/actions/messageTranslateActions.js
 COPY lib/integrations/openai/translation_service.rb /app/lib/integrations/openai/translation_service.rb
