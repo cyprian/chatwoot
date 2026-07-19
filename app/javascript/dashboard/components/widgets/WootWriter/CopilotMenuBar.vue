@@ -1,9 +1,13 @@
 <script setup>
 import { computed, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useStore } from 'vuex';
 import { useElementSize, useWindowSize } from '@vueuse/core';
 import { useMapGetter } from 'dashboard/composables/store';
+import { useAlert } from 'dashboard/composables';
+import { parseAPIErrorResponse } from 'dashboard/store/utils/api';
 import { REPLY_EDITOR_MODES } from 'dashboard/components/widgets/WootWriter/constants';
+import { MESSAGE_TYPES } from 'next/message/constants.js';
 import Button from 'dashboard/components-next/button/Button.vue';
 import DropdownBody from 'next/dropdown-menu/base/DropdownBody.vue';
 
@@ -33,8 +37,22 @@ const props = defineProps({
 const emit = defineEmits(['executeCopilotAction']);
 
 const { t } = useI18n();
+const store = useStore();
 
 const replyMode = useMapGetter('draftMessages/getReplyEditorMode');
+const currentChat = useMapGetter('getSelectedChat');
+
+const latestCustomerMessage = computed(() => {
+  const messages = currentChat.value?.messages || [];
+  return [...messages]
+    .reverse()
+    .find(
+      message =>
+        message.message_type === MESSAGE_TYPES.INCOMING &&
+        !message.private &&
+        message.content
+    );
+});
 
 // Selection-based menu items (when text is selected)
 const menuItems = computed(() => {
@@ -136,6 +154,16 @@ const generalMenuItems = computed(() => {
     });
   }
 
+  if (latestCustomerMessage.value) {
+    items.push({
+      label: t(
+        'INTEGRATION_SETTINGS.OPEN_AI.REPLY_OPTIONS.TRANSLATE_LATEST_MESSAGE'
+      ),
+      key: 'translate_latest_message',
+      icon: 'i-lucide-languages',
+    });
+  }
+
   items.push({
     label: t('INTEGRATION_SETTINGS.OPEN_AI.REPLY_OPTIONS.ASK_COPILOT'),
     key: 'ask_copilot',
@@ -175,9 +203,24 @@ const selectionMenuStyle = computed(() => {
   };
 });
 
+const translateLatestCustomerMessage = async () => {
+  try {
+    await store.dispatch('translateMessage', {
+      conversationId: props.conversationId,
+      messageId: latestCustomerMessage.value.id,
+    });
+  } catch (error) {
+    useAlert(parseAPIErrorResponse(error));
+  }
+};
+
 const handleMenuItemClick = item => {
   // For items with submenus, do nothing on click (hover will show submenu)
   if (!item.subMenuItems) {
+    if (item.key === 'translate_latest_message') {
+      translateLatestCustomerMessage();
+      return;
+    }
     emit('executeCopilotAction', item.key);
   }
 };

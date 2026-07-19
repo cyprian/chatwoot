@@ -64,6 +64,21 @@ const hasEmailContent = computed(() => {
   );
 });
 
+const translationToHtml = translation => {
+  const escapedTranslation = translation
+    .replace(/\r\n/g, '\n')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+  return escapedTranslation
+    .split(/\n{2,}/)
+    .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
+    .join('');
+};
+
 const messageContent = computed(() => {
   // If translations exist and we're showing translations (not original)
   if (hasEnglishTranslation.value && !renderOriginal.value) {
@@ -93,11 +108,11 @@ const textToShow = computed(() => {
 const fullHTML = computed(() => {
   // If translations exist and we're showing translations (not original)
   if (hasEnglishTranslation.value && !renderOriginal.value) {
-    return englishTranslation.value;
+    return translationToHtml(englishTranslation.value);
   }
 
   if (hasTranslations.value && !renderOriginal.value) {
-    return translationContent.value;
+    return translationToHtml(translationContent.value);
   }
   // Otherwise show original HTML
   return originalEmailHtml.value;

@@ -23,7 +23,9 @@ COPY app/javascript/dashboard/components-next/message/Message.vue /app/app/javas
 COPY app/javascript/dashboard/components-next/message/bubbles/Text/Index.vue /app/app/javascript/dashboard/components-next/message/bubbles/Text/Index.vue
 COPY app/javascript/dashboard/components-next/message/bubbles/Email/Index.vue /app/app/javascript/dashboard/components-next/message/bubbles/Email/Index.vue
 COPY app/javascript/dashboard/i18n/locale/en/conversation.json /app/app/javascript/dashboard/i18n/locale/en/conversation.json
+COPY app/javascript/dashboard/i18n/locale/en/integrations.json /app/app/javascript/dashboard/i18n/locale/en/integrations.json
 COPY app/javascript/dashboard/store/modules/conversations/actions/messageTranslateActions.js /app/app/javascript/dashboard/store/modules/conversations/actions/messageTranslateActions.js
+COPY app/javascript/dashboard/components/widgets/WootWriter/CopilotMenuBar.vue /app/app/javascript/dashboard/components/widgets/WootWriter/CopilotMenuBar.vue
 COPY lib/integrations/openai/translation_service.rb /app/lib/integrations/openai/translation_service.rb
 RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
   && npm install -g pnpm@10.2.0 \
