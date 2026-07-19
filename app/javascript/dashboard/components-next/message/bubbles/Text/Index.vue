@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
 import { useStore } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import { parseAPIErrorResponse } from 'dashboard/store/utils/api';
@@ -54,6 +54,26 @@ const handleSeeOriginal = () => {
   renderOriginal.value = !renderOriginal.value;
 };
 
+const showEnglishTranslation = event => {
+  if (Number(event.detail?.messageId) === Number(id.value)) {
+    renderOriginal.value = false;
+  }
+};
+
+onMounted(() => {
+  window.addEventListener(
+    'chatwoot:show-english-translation',
+    showEnglishTranslation
+  );
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener(
+    'chatwoot:show-english-translation',
+    showEnglishTranslation
+  );
+});
+
 const shouldShowTranslateAction = computed(() => {
   return (
     messageType.value === MESSAGE_TYPES.INCOMING &&
@@ -68,6 +88,7 @@ const translateToEnglish = async () => {
       conversationId: conversationId.value,
       messageId: id.value,
     });
+    renderOriginal.value = false;
   } catch (error) {
     useAlert(parseAPIErrorResponse(error));
   } finally {

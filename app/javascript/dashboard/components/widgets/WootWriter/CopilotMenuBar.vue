@@ -203,10 +203,16 @@ const selectionMenuStyle = computed(() => {
 
 const translateLatestCustomerMessage = async () => {
   try {
+    const message = latestCustomerMessage.value;
     await store.dispatch('translateMessage', {
       conversationId: props.conversationId,
-      messageId: latestCustomerMessage.value.id,
+      messageId: message.id,
     });
+    window.dispatchEvent(
+      new CustomEvent('chatwoot:show-english-translation', {
+        detail: { messageId: message.id },
+      })
+    );
   } catch (error) {
     useAlert(parseAPIErrorResponse(error));
   }

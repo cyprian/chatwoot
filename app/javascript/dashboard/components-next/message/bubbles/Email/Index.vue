@@ -1,5 +1,5 @@
 <script setup>
-import { computed, useTemplateRef, ref, onMounted } from 'vue';
+import { computed, useTemplateRef, ref, onMounted, onBeforeUnmount } from 'vue';
 import { useStore } from 'vuex';
 import { Letter } from 'vue-letter';
 import { sanitizeTextForRender } from '@chatwoot/utils';
@@ -138,6 +138,26 @@ const handleSeeOriginal = () => {
   renderOriginal.value = !renderOriginal.value;
 };
 
+const showEnglishTranslation = event => {
+  if (Number(event.detail?.messageId) === Number(id.value)) {
+    renderOriginal.value = false;
+  }
+};
+
+onMounted(() => {
+  window.addEventListener(
+    'chatwoot:show-english-translation',
+    showEnglishTranslation
+  );
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener(
+    'chatwoot:show-english-translation',
+    showEnglishTranslation
+  );
+});
+
 const shouldShowTranslateAction = computed(() => {
   return isIncoming.value && !hasEnglishTranslation.value;
 });
@@ -149,6 +169,7 @@ const translateToEnglish = async () => {
       conversationId: conversationId.value,
       messageId: id.value,
     });
+    renderOriginal.value = false;
   } catch (error) {
     useAlert(parseAPIErrorResponse(error));
   } finally {

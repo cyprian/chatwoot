@@ -7,5 +7,6 @@ export default {
       messageId
     );
     commit('ADD_MESSAGE', data);
+    return data;
   },
 };
