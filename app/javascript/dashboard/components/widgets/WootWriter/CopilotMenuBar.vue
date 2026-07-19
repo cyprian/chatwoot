@@ -156,9 +156,7 @@ const generalMenuItems = computed(() => {
 
   if (latestCustomerMessage.value) {
     items.push({
-      label: t(
-        'INTEGRATION_SETTINGS.OPEN_AI.REPLY_OPTIONS.TRANSLATE_LATEST_MESSAGE'
-      ),
+      label: t('CONVERSATION.TRANSLATE_TO_ENGLISH'),
       key: 'translate_latest_message',
       icon: 'i-lucide-languages',
     });

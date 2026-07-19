@@ -551,6 +551,11 @@ diff --git a/app/javascript/dashboard/i18n/locale/en/conversation.json b/app/jav
 index 045b8d0d9..f83773102 100644
 --- a/app/javascript/dashboard/i18n/locale/en/conversation.json
 +++ b/app/javascript/dashboard/i18n/locale/en/conversation.json
+@@ -14,2 +14,3 @@
+      "VIEW_ORIGINAL": "View original",
+      "VIEW_TRANSLATED": "View translated",
++    "TRANSLATE_TO_ENGLISH": "Translate to English",
+      "EMPTY_STATE": {
 @@ -392,2 +392,4 @@
        "SHOPIFY_ORDERS": "Shopify Orders",
 +      "FIREBASE_PROFILE": "App profile",
