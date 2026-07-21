@@ -7,11 +7,13 @@ RUN apk add --no-cache patch
 COPY deployment/eyepic/chatwoot-firebase-profile.patch /tmp/chatwoot-firebase-profile.patch
 COPY deployment/eyepic/apply-hub-egress-gate.rb /tmp/apply-hub-egress-gate.rb
 COPY deployment/eyepic/apply-sidebar-translations.rb /tmp/apply-sidebar-translations.rb
+COPY deployment/eyepic/chatwoot-slack-notifications.patch /tmp/chatwoot-slack-notifications.patch
 COPY deployment/eyepic/firebase-profile-logo.png /tmp/firebase-profile-logo.png
 COPY deployment/eyepic/eye-photo-logo.png /tmp/eye-photo-logo.png
 RUN patch --batch --forward -p1 -d /app < /tmp/chatwoot-firebase-profile.patch
 RUN ruby /tmp/apply-hub-egress-gate.rb
 RUN ruby /tmp/apply-sidebar-translations.rb
+RUN patch --batch --forward -p1 -d /app < /tmp/chatwoot-slack-notifications.patch
 # Integration settings derive image URLs from the integration id. Provide both
 # variants before assets are compiled so they are published with the dashboard.
 RUN cp /tmp/firebase-profile-logo.png /app/public/dashboard/images/integrations/firebase_profile.png \
@@ -31,20 +33,15 @@ COPY lib/integrations/openai/translation_service.rb /app/lib/integrations/openai
 COPY app/controllers/api/v1/accounts/slack_inbox_configurations_controller.rb /app/app/controllers/api/v1/accounts/slack_inbox_configurations_controller.rb
 COPY app/controllers/api/v1/accounts/slack_workspace_connections_controller.rb /app/app/controllers/api/v1/accounts/slack_workspace_connections_controller.rb
 COPY app/controllers/api/v1/slack_workspace_oauth_controller.rb /app/app/controllers/api/v1/slack_workspace_oauth_controller.rb
-COPY app/dispatchers/async_dispatcher.rb /app/app/dispatchers/async_dispatcher.rb
 COPY app/javascript/dashboard/api/slackNotifications.js /app/app/javascript/dashboard/api/slackNotifications.js
 COPY app/javascript/dashboard/i18n/locale/en/inboxMgmt.json /app/app/javascript/dashboard/i18n/locale/en/inboxMgmt.json
-COPY app/javascript/dashboard/routes/dashboard/settings/inbox/Settings.vue /app/app/javascript/dashboard/routes/dashboard/settings/inbox/Settings.vue
 COPY app/javascript/dashboard/routes/dashboard/settings/inbox/settingsPage/SlackNotificationsPage.vue /app/app/javascript/dashboard/routes/dashboard/settings/inbox/settingsPage/SlackNotificationsPage.vue
 COPY app/jobs/slack_inbox_notification_job.rb /app/app/jobs/slack_inbox_notification_job.rb
 COPY app/listeners/slack_notification_listener.rb /app/app/listeners/slack_notification_listener.rb
-COPY app/models/account.rb /app/app/models/account.rb
-COPY app/models/inbox.rb /app/app/models/inbox.rb
 COPY app/models/slack_conversation_delivery.rb /app/app/models/slack_conversation_delivery.rb
 COPY app/models/slack_inbox_configuration.rb /app/app/models/slack_inbox_configuration.rb
 COPY app/models/slack_workspace_connection.rb /app/app/models/slack_workspace_connection.rb
 COPY app/services/slack_notifications /app/app/services/slack_notifications
-COPY config/routes.rb /app/config/routes.rb
 COPY db/migrate/20260721090000_create_custom_slack_notifications.rb /app/db/migrate/20260721090000_create_custom_slack_notifications.rb
 RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
   && npm install -g pnpm@10.2.0 \

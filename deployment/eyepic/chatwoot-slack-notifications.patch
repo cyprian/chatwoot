@@ -1,0 +1,104 @@
+diff --git a/app/dispatchers/async_dispatcher.rb b/app/dispatchers/async_dispatcher.rb
+--- a/app/dispatchers/async_dispatcher.rb
++++ b/app/dispatchers/async_dispatcher.rb
+@@ -19,6 +19,7 @@ class AsyncDispatcher < BaseDispatcher
+       ParticipationListener.instance,
+       Conversations::UnreadCounts::Listener.instance,
+       ReportingEventListener.instance,
++      SlackNotificationListener.instance,
+       WebhookListener.instance
+     ]
+   end
+diff --git a/app/models/account.rb b/app/models/account.rb
+--- a/app/models/account.rb
++++ b/app/models/account.rb
+@@ -90,6 +90,8 @@ class Account < ApplicationRecord
+   has_many :notifications, dependent: :destroy_async
+   has_many :portals, dependent: :destroy_async, class_name: '::Portal'
+   has_many :sms_channels, dependent: :destroy_async, class_name: '::Channel::Sms'
++  has_many :slack_inbox_configurations, dependent: :destroy
++  has_many :slack_workspace_connections, dependent: :destroy
+   has_many :teams, dependent: :destroy_async
+   has_many :telegram_channels, dependent: :destroy_async, class_name: '::Channel::Telegram'
+   has_many :twilio_sms, dependent: :destroy_async, class_name: '::Channel::TwilioSms'
+diff --git a/app/models/inbox.rb b/app/models/inbox.rb
+--- a/app/models/inbox.rb
++++ b/app/models/inbox.rb
+@@ -74,6 +74,7 @@ class Inbox < ApplicationRecord
+   has_one :agent_bot, through: :agent_bot_inbox
+   has_many :webhooks, dependent: :destroy_async
+   has_many :hooks, dependent: :destroy_async, class_name: 'Integrations::Hook'
++  has_one :slack_inbox_configuration, dependent: :destroy
+ 
+   enum sender_name_type: { friendly: 0, professional: 1 }
+ 
+diff --git a/config/routes.rb b/config/routes.rb
+--- a/config/routes.rb
++++ b/config/routes.rb
+@@ -42,6 +42,7 @@ Rails.application.routes.draw do
+   get '/api', to: 'api#index'
+   namespace :api, defaults: { format: 'json' } do
+     namespace :v1 do
++      get 'slack_workspace_oauth/callback', to: 'slack_workspace_oauth#callback'
+       # ----------------------------------
+       # start of account scoped api routes
+       resources :accounts, only: [:create, :show, :update] do
+@@ -343,6 +344,16 @@ Rails.application.routes.draw do
+           end
+ 
+           resources :webhooks, only: [:index, :create, :update, :destroy]
++          resources :slack_workspace_connections, only: [:index, :create, :destroy] do
++            get :channels, on: :member
++          end
++          resources :inboxes, only: [] do
++            resource :slack_configuration,
++                     only: [:show, :update, :destroy],
++                     controller: 'slack_inbox_configurations' do
++              post :test
++            end
++          end
+           namespace :integrations do
+             resources :apps, only: [:index, :show]
+             resources :hooks, only: [:show, :create, :update, :destroy] do
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/inbox/Settings.vue b/app/javascript/dashboard/routes/dashboard/settings/inbox/Settings.vue
+--- a/app/javascript/dashboard/routes/dashboard/settings/inbox/Settings.vue
++++ b/app/javascript/dashboard/routes/dashboard/settings/inbox/Settings.vue
+@@ -26,5 +26,6 @@ import WhatsappCallingPage from './settingsPage/WhatsappCallingPage.vue';
+ import CustomerSatisfactionPage from './settingsPage/CustomerSatisfactionPage.vue';
+ import CollaboratorsPage from './settingsPage/CollaboratorsPage.vue';
++import SlackNotificationsPage from './settingsPage/SlackNotificationsPage.vue';
+ import BotConfiguration from './components/BotConfiguration.vue';
+ import AccountHealth from './components/AccountHealth.vue';
+ import { FEATURE_FLAGS } from '../../../../featureFlags';
+@@ -47,6 +48,7 @@ export default {
+   components: {
+     BotConfiguration,
+     CollaboratorsPage,
++    SlackNotificationsPage,
+     ConfigurationPage,
+     VoiceConfigurationPage,
+     WhatsappCallingPage,
+@@ -183,6 +185,10 @@ export default {
+           key: 'csat',
+           name: this.$t('INBOX_MGMT.TABS.CSAT'),
+         },
++        {
++          key: 'slack-notifications',
++          name: this.$t('INBOX_MGMT.TABS.SLACK_NOTIFICATIONS'),
++        },
+       ];
+ 
+       if (this.isAWebWidgetInbox) {
+@@ -1295,6 +1301,12 @@ export default {
+         <div v-if="selectedTabKey === 'business-hours'">
+           <WeeklyAvailability :inbox="inbox" />
+         </div>
++        <div
++          v-if="selectedTabKey === 'slack-notifications'"
++          class="mx-6 max-w-4xl"
++        >
++          <SlackNotificationsPage :inbox="inbox" />
++        </div>
+         <div v-if="selectedTabKey === 'bot-configuration'">
+           <BotConfiguration :inbox="inbox" />
+         </div>
