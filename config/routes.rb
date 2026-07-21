@@ -42,6 +42,7 @@ Rails.application.routes.draw do
   get '/api', to: 'api#index'
   namespace :api, defaults: { format: 'json' } do
     namespace :v1 do
+      get 'slack_workspace_oauth/callback', to: 'slack_workspace_oauth#callback'
       # ----------------------------------
       # start of account scoped api routes
       resources :accounts, only: [:create, :show, :update] do
@@ -359,6 +360,16 @@ Rails.application.routes.draw do
           end
 
           resources :webhooks, only: [:index, :create, :update, :destroy]
+          resources :slack_workspace_connections, only: [:index, :create, :destroy] do
+            get :channels, on: :member
+          end
+          resources :inboxes, only: [] do
+            resource :slack_configuration,
+                     only: [:show, :update, :destroy],
+                     controller: 'slack_inbox_configurations' do
+              post :test
+            end
+          end
           namespace :integrations do
             resources :apps, only: [:index, :show]
             resources :hooks, only: [:show, :create, :update, :destroy] do

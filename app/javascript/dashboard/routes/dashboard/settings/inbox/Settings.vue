@@ -27,6 +27,7 @@ import VoiceConfigurationPage from './settingsPage/VoiceConfigurationPage.vue';
 import WhatsappCallingPage from './settingsPage/WhatsappCallingPage.vue';
 import CustomerSatisfactionPage from './settingsPage/CustomerSatisfactionPage.vue';
 import CollaboratorsPage from './settingsPage/CollaboratorsPage.vue';
+import SlackNotificationsPage from './settingsPage/SlackNotificationsPage.vue';
 import BotConfiguration from './components/BotConfiguration.vue';
 import AccountHealth from './components/AccountHealth.vue';
 import WhatsappManualMigrationDialog from './components/WhatsappManualMigrationDialog.vue';
@@ -53,6 +54,7 @@ export default {
     Banner,
     BotConfiguration,
     CollaboratorsPage,
+    SlackNotificationsPage,
     ConfigurationPage,
     VoiceConfigurationPage,
     WhatsappCallingPage,
@@ -192,6 +194,10 @@ export default {
         {
           key: 'csat',
           name: this.$t('INBOX_MGMT.TABS.CSAT'),
+        },
+        {
+          key: 'slack-notifications',
+          name: this.$t('INBOX_MGMT.TABS.SLACK_NOTIFICATIONS'),
         },
       ];
 
@@ -1397,6 +1403,12 @@ export default {
         </div>
         <div v-if="selectedTabKey === 'business-hours'">
           <WeeklyAvailability :inbox="inbox" />
+        </div>
+        <div
+          v-if="selectedTabKey === 'slack-notifications'"
+          class="mx-6 max-w-4xl"
+        >
+          <SlackNotificationsPage :inbox="inbox" />
         </div>
         <div v-if="selectedTabKey === 'bot-configuration'">
           <BotConfiguration :inbox="inbox" />

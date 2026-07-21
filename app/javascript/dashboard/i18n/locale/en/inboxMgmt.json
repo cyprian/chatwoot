@@ -650,7 +650,8 @@
       "ACCOUNT_HEALTH": "Account Health",
       "CSAT": "CSAT",
       "VOICE": "Voice",
-      "CALLS": "Calls"
+      "CALLS": "Calls",
+      "SLACK_NOTIFICATIONS": "Slack Notifications"
     },
     "VOICE_CONFIGURATION": {
       "ENABLE_VOICE": {
@@ -1264,6 +1265,71 @@
       "OTHER_PROVIDERS": {
         "TITLE": "Other Providers",
         "DESCRIPTION": "Connect with Other Providers"
+      }
+    },
+    "SLACK_NOTIFICATIONS": {
+      "TITLE": "Slack notifications",
+      "DESCRIPTION": "Route this inbox to a channel in any connected Slack workspace and control exactly what is shared.",
+      "CONNECT_APP": "Connect a Slack app",
+      "CONNECT_HELP": "Create or select a Slack app, add the callback URL below to OAuth & Permissions, and enter its credentials. Required bot scopes: chat:write, chat:write.public, channels:read, and groups:read.",
+      "APP_NAME": "Connection name",
+      "CLIENT_ID": "Slack client ID",
+      "CLIENT_SECRET": "Slack client secret",
+      "CONNECT": "Connect workspace",
+      "REMOVE_CONNECTION": "Remove",
+      "CONNECTION_REMOVED": "Slack connection removed",
+      "CONNECTION_IN_USE": "This Slack connection is still assigned to an inbox",
+      "CONNECTION_SUCCESS": "Slack workspace connected",
+      "CONNECTION_ERROR": "Slack could not authorize this app. Check the credentials and callback URL.",
+      "ENABLED": "Enable Slack notifications for this inbox",
+      "WORKSPACE": "Slack workspace",
+      "SELECT_WORKSPACE": "Select a connected workspace",
+      "WORKSPACE_OPTION": "{name} — {workspace}",
+      "CHANNEL": "Slack channel",
+      "SELECT_CHANNEL": "Select a channel",
+      "PRIVATE": "private",
+      "PRIVATE_SUFFIX": " (private)",
+      "CHANNEL_OPTION": "#{name}{private}",
+      "EVENTS": "Events to send",
+      "CONTENT": "Message content",
+      "CONDITIONS": "Conditions",
+      "BODY": "Message body",
+      "BODY_NONE": "Do not include",
+      "BODY_PREVIEW": "Preview",
+      "BODY_FULL": "Full message",
+      "PREVIEW_LENGTH": "Preview length",
+      "THREAD_UPDATES": "Keep updates for each conversation in one Slack thread",
+      "MINIMUM_PRIORITY": "Minimum priority",
+      "ANY_PRIORITY": "Any priority",
+      "PRIORITY_LOW": "Low",
+      "PRIORITY_MEDIUM": "Medium",
+      "PRIORITY_HIGH": "High",
+      "PRIORITY_URGENT": "Urgent",
+      "INCLUDE_LABELS": "Require one of these labels",
+      "EXCLUDE_LABELS": "Exclude these labels",
+      "SAVE": "Save Slack settings",
+      "TEST": "Send test message",
+      "SAVED": "Slack notification settings saved",
+      "TEST_SENT": "Test message sent to Slack",
+      "ERROR": "Could not update Slack notifications",
+      "EVENT": {
+        "CONVERSATION_CREATED": "New conversations",
+        "INCOMING_MESSAGE": "New customer messages",
+        "OUTGOING_MESSAGE": "Agent replies",
+        "PRIVATE_NOTE": "Private notes",
+        "ASSIGNMENT_CHANGED": "Assignment changes",
+        "STATUS_CHANGED": "Status changes"
+      },
+      "FIELD": {
+        "SENDER_NAME": "Sender name",
+        "SENDER_EMAIL": "Sender email",
+        "SUBJECT": "Email subject",
+        "ATTACHMENTS": "Attachment names",
+        "ASSIGNEE": "Assignee",
+        "LABELS": "Labels",
+        "PRIORITY": "Priority",
+        "INBOX_NAME": "Inbox name",
+        "CONVERSATION_LINK": "Open conversation button"
       }
     },
     "CHANNELS": {

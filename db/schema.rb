@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_13_184351) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_21_090000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1350,6 +1350,52 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_13_184351) do
     t.index ["account_id"], name: "index_sla_policies_on_account_id"
   end
 
+  create_table "slack_conversation_deliveries", force: :cascade do |t|
+    t.bigint "slack_inbox_configuration_id", null: false
+    t.integer "conversation_id", null: false
+    t.string "channel_id", null: false
+    t.string "thread_ts", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["conversation_id"], name: "index_slack_conversation_deliveries_on_conversation_id"
+    t.index ["slack_inbox_configuration_id", "conversation_id"], name: "idx_slack_deliveries_on_config_and_conversation", unique: true
+    t.index ["slack_inbox_configuration_id"], name: "idx_slack_deliveries_on_configuration"
+  end
+
+  create_table "slack_inbox_configurations", force: :cascade do |t|
+    t.integer "account_id", null: false
+    t.integer "inbox_id", null: false
+    t.bigint "slack_workspace_connection_id", null: false
+    t.boolean "enabled", default: false, null: false
+    t.string "channel_id", null: false
+    t.string "channel_name", null: false
+    t.jsonb "rules", default: {}, null: false
+    t.datetime "last_delivered_at"
+    t.text "last_error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_slack_inbox_configurations_on_account_id"
+    t.index ["inbox_id"], name: "index_slack_inbox_configurations_on_inbox_id", unique: true
+    t.index ["slack_workspace_connection_id"], name: "idx_slack_inbox_configs_on_connection"
+  end
+
+  create_table "slack_workspace_connections", force: :cascade do |t|
+    t.integer "account_id", null: false
+    t.string "name", null: false
+    t.string "client_id", null: false
+    t.string "client_secret", null: false
+    t.string "access_token"
+    t.string "slack_team_id"
+    t.string "slack_team_name"
+    t.string "slack_bot_user_id"
+    t.integer "status", default: 0, null: false
+    t.text "last_error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "client_id", "slack_team_id"], name: "idx_slack_connections_on_account_app_and_team", unique: true, where: "(slack_team_id IS NOT NULL)"
+    t.index ["account_id"], name: "index_slack_workspace_connections_on_account_id"
+  end
+
   create_table "taggings", id: :serial, force: :cascade do |t|
     t.integer "tag_id"
     t.string "taggable_type"
@@ -1491,6 +1537,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_13_184351) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "inboxes", "portals"
+  add_foreign_key "slack_conversation_deliveries", "conversations"
+  add_foreign_key "slack_conversation_deliveries", "slack_inbox_configurations"
+  add_foreign_key "slack_inbox_configurations", "accounts"
+  add_foreign_key "slack_inbox_configurations", "inboxes"
+  add_foreign_key "slack_inbox_configurations", "slack_workspace_connections"
+  add_foreign_key "slack_workspace_connections", "accounts"
   add_foreign_key "user_sessions", "users"
   create_trigger("accounts_after_insert_row_tr", :generated => true, :compatibility => 1).
       on("accounts").
