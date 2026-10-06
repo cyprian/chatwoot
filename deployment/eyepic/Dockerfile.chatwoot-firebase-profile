@@ -8,7 +8,8 @@ ARG EYEPIC_REVISION
 LABEL org.opencontainers.image.source="https://github.com/cyprian/chatwoot" \
       org.opencontainers.image.revision="${EYEPIC_REVISION}" \
       org.opencontainers.image.version="4.18.0"
-ENV NODE_OPTIONS="--max-old-space-size=3072"
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+ARG PRECOMPILED_ASSETS=false
 COPY Gemfile Gemfile.lock package.json pnpm-lock.yaml /app/
 COPY app /app/app
 COPY enterprise /app/enterprise
@@ -17,7 +18,13 @@ COPY config /app/config
 COPY db /app/db
 COPY public /app/public
 RUN bundle check \
-  && node /usr/local/lib/node_modules/npm/bin/npm-cli.js install -g pnpm@10.2.0 \
-  && pnpm install --frozen-lockfile --ignore-scripts \
-  && SECRET_KEY_BASE=precompile_placeholder RAILS_LOG_TO_STDOUT=enabled bundle exec rake assets:precompile \
+  && if [ "$PRECOMPILED_ASSETS" = true ]; then \
+       test "$(cat /app/public/eyepic-revision.txt)" = "$EYEPIC_REVISION" \
+       && test -f /app/public/vite/.vite/manifest.json \
+       && test -f /app/public/packs/js/sdk.js; \
+     else \
+       node /usr/local/lib/node_modules/npm/bin/npm-cli.js install -g pnpm@10.2.0 \
+       && pnpm install --frozen-lockfile --ignore-scripts \
+       && SECRET_KEY_BASE=precompile_placeholder RAILS_LOG_TO_STDOUT=enabled bundle exec rake assets:precompile; \
+     fi \
   && rm -rf node_modules tmp/cache
