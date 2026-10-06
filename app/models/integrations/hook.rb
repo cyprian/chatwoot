@@ -18,7 +18,8 @@ class Integrations::Hook < ApplicationRecord
   include Reauthorizable
 
   attr_readonly :app_id, :account_id, :inbox_id, :hook_type
-  before_validation :ensure_hook_type
+  before_validation :ensure_hook_type, on: :create
+  before_validation :normalize_shopify_reference_id, if: :shopify?
   after_create :trigger_setup_if_crm
 
   # TODO: Remove guard once encryption keys become mandatory (target 3-4 releases out).
@@ -27,11 +28,16 @@ class Integrations::Hook < ApplicationRecord
   validates :account_id, presence: true
   validates :app_id, presence: true
   validates :inbox_id, presence: true, if: -> { hook_type == 'inbox' }
+  validates :reference_id, presence: true, format: { with: Shopify::ShopDomain::FORMAT }, if: :shopify?
+  validates :reference_id,
+            uniqueness: { case_sensitive: false, conditions: -> { where(app_id: 'shopify') } },
+            if: :shopify?
   validate :validate_settings_json_schema
   validate :ensure_feature_enabled
   validate :validate_openai_api_key, if: :validate_openai_api_key?
   validate :validate_cloudflare_realtimekit_credentials, if: :validate_cloudflare_realtimekit_credentials?
   validates :app_id, uniqueness: { scope: [:account_id], unless: -> { app.present? && app.params[:allow_multiple_hooks].present? } }
+  validates :app_id, uniqueness: { scope: [:account_id, :inbox_id] }, if: :eye_photo?
 
   # TODO: This seems to be only used for slack at the moment
   # We can add a validator when storing the integration settings and toggle this in future
@@ -54,6 +60,12 @@ class Integrations::Hook < ApplicationRecord
     app_id == 'slack'
   end
 
+  # Alert mode makes the Slack integration one way. Conversations are pushed to Slack,
+  # but replies posted in the Slack thread are never synced back to the customer.
+  def slack_alert_mode?
+    slack? && settings['message_mode'] == 'alert'
+  end
+
   def dialogflow?
     app_id == 'dialogflow'
   end
@@ -66,8 +78,16 @@ class Integrations::Hook < ApplicationRecord
     app_id == 'dyte'
   end
 
+  def eye_photo?
+    app_id == 'eye_photo'
+  end
+
   def notion?
     app_id == 'notion'
+  end
+
+  def shopify?
+    app_id == 'shopify'
   end
 
   def disable
@@ -92,11 +112,19 @@ class Integrations::Hook < ApplicationRecord
   private
 
   def ensure_feature_enabled
+    return if shopify? && disabled?
+
     errors.add(:feature_flag, 'Feature not enabled') unless feature_allowed?
   end
 
   def ensure_hook_type
-    self.hook_type = app.params[:hook_type] if app.present?
+    return if app.blank?
+
+    self.hook_type = app.params[:hook_type]
+  end
+
+  def normalize_shopify_reference_id
+    self.reference_id = Shopify::ShopDomain.normalize(reference_id)
   end
 
   def validate_settings_json_schema

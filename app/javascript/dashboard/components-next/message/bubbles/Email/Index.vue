@@ -20,8 +20,14 @@ import { useMessageContext } from '../../provider.js';
 import { MESSAGE_TYPES } from 'next/message/constants.js';
 import { useTranslations } from 'dashboard/composables/useTranslations';
 
-const { id, content, contentAttributes, attachments, conversationId, messageType } =
-  useMessageContext();
+const {
+  id,
+  content,
+  contentAttributes,
+  attachments,
+  conversationId,
+  messageType,
+} = useMessageContext();
 const store = useStore();
 
 const isExpandable = ref(false);

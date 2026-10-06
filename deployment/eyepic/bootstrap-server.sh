@@ -4,6 +4,7 @@ set -euo pipefail
 APP_DIR=/opt/apps/chatwoot
 RUNTIME_DIR=/opt/chatwoot-runtime
 DOMAIN=support.eyepic.io
+EYEPIC_REVISION=$(git -C "$APP_DIR" rev-parse HEAD)
 
 if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
   echo "Docker Engine and Docker Compose v2 are required."
@@ -22,7 +23,9 @@ if [ ! -f "$RUNTIME_DIR/.env" ]; then
   redis_password=$(openssl rand -hex 32)
 
   cat >"$RUNTIME_DIR/.env" <<EOF
-CHATWOOT_VERSION=v4.14.0
+CHATWOOT_VERSION=v4.18.0
+CHATWOOT_IMAGE=eyepic/chatwoot-firebase-profile:v4.18.0-$EYEPIC_REVISION
+EYEPIC_REVISION=$EYEPIC_REVISION
 FRONTEND_URL=https://$DOMAIN
 FORCE_SSL=true
 ENABLE_ACCOUNT_SIGNUP=false
@@ -59,6 +62,11 @@ FIREBASE_PROFILE_CREDENTIALS_FILE=$RUNTIME_DIR/firebase-service-account.json
 EOF
 fi
 chmod 600 "$RUNTIME_DIR/.env"
+
+if ! grep -q '^CHATWOOT_IMAGE=' "$RUNTIME_DIR/.env"; then
+  echo "Existing installations must use the upgrade runbook and a tested immutable CHATWOOT_IMAGE."
+  exit 1
+fi
 
 cp "$APP_DIR/deployment/eyepic/docker-compose.yml" "$RUNTIME_DIR/docker-compose.yml"
 cp "$APP_DIR/deployment/eyepic/Caddyfile" /etc/caddy/Caddyfile

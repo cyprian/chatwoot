@@ -21,6 +21,8 @@ import SharedFiles from './SharedFiles.vue';
 import Draggable from 'vuedraggable';
 import MacrosList from './Macros/List.vue';
 import ShopifyOrdersList from 'dashboard/components/widgets/conversation/ShopifyOrdersList.vue';
+import FirebaseProfile from 'dashboard/components/widgets/conversation/FirebaseProfile.vue';
+import EyePhotoData from 'dashboard/components/widgets/conversation/EyePhotoData.vue';
 import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader.vue';
 import LinearIssuesList from 'dashboard/components/widgets/conversation/linear/IssuesList.vue';
 import LinearSetupCTA from 'dashboard/components/widgets/conversation/linear/LinearSetupCTA.vue';
@@ -41,6 +43,7 @@ const {
   isContactSidebarItemOpen,
   conversationSidebarItemsOrder,
   toggleSidebarUIState,
+  isOnExpandedLayout,
 } = useUISettings();
 
 const dragging = ref(false);
@@ -53,6 +56,24 @@ const shopifyIntegration = useFunctionGetter(
 
 const isShopifyFeatureEnabled = computed(
   () => shopifyIntegration.value.enabled
+);
+const firebaseProfileIntegration = useFunctionGetter(
+  'integrations/getIntegration',
+  'firebase_profile'
+);
+const isFirebaseProfileEnabled = computed(() =>
+  firebaseProfileIntegration.value?.hooks?.some(
+    hook => hook.status && hook.inbox?.id === props.inboxId
+  )
+);
+const eyePhotoIntegration = useFunctionGetter(
+  'integrations/getIntegration',
+  'eye_photo'
+);
+const isEyePhotoEnabled = computed(() =>
+  eyePhotoIntegration.value?.hooks?.some(
+    hook => hook.status && hook.inbox?.id === props.inboxId
+  )
 );
 
 const { isCloudFeatureEnabled } = useAccount();
@@ -96,6 +117,14 @@ const contactAdditionalAttributes = computed(
   () => contact.value.additional_attributes || {}
 );
 
+const appliedContactFilter = useMapGetter('getAppliedContactFilter');
+
+const isListScopedToContact = computed(
+  () =>
+    !isOnExpandedLayout.value &&
+    appliedContactFilter.value?.id === contactId.value
+);
+
 const getContactDetails = () => {
   if (contactId.value) {
     store.dispatch('contacts/show', { id: contactId.value });
@@ -128,6 +157,8 @@ onMounted(() => {
   store.dispatch('attributes/get', 0);
   // Load integrations to ensure linear integration state is available
   store.dispatch('integrations/get', 'linear');
+  store.dispatch('integrations/get', 'firebase_profile');
+  store.dispatch('integrations/get', 'eye_photo');
 });
 </script>
 
@@ -220,7 +251,11 @@ onMounted(() => {
               />
             </AccordionItem>
           </div>
-          <div v-else-if="element.name === 'previous_conversation'">
+          <div
+            v-else-if="
+              element.name === 'previous_conversation' && !isListScopedToContact
+            "
+          >
             <AccordionItem
               v-if="contact.id"
               :title="
@@ -284,6 +319,42 @@ onMounted(() => {
               "
             >
               <ShopifyOrdersList :contact-id="contactId" />
+            </AccordionItem>
+          </div>
+          <div
+            v-else-if="
+              element.name === 'firebase_profile' && isFirebaseProfileEnabled
+            "
+          >
+            <AccordionItem
+              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.FIREBASE_PROFILE')"
+              :is-open="isContactSidebarItemOpen('is_firebase_profile_open')"
+              compact
+              @toggle="
+                value => toggleSidebarUIState('is_firebase_profile_open', value)
+              "
+            >
+              <FirebaseProfile
+                :conversation-id="conversationId"
+                :contact-id="contactId"
+                :email="contact?.email"
+              />
+            </AccordionItem>
+          </div>
+          <div v-else-if="element.name === 'eye_photo' && isEyePhotoEnabled">
+            <AccordionItem
+              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.EYE_PHOTO')"
+              :is-open="isContactSidebarItemOpen('is_eye_photo_open')"
+              compact
+              @toggle="
+                value => toggleSidebarUIState('is_eye_photo_open', value)
+              "
+            >
+              <EyePhotoData
+                :conversation-id="conversationId"
+                :contact-id="contactId"
+                :email="contact?.email"
+              />
             </AccordionItem>
           </div>
           <div v-else-if="element.name === 'contact_notes'">

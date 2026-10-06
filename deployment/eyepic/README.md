@@ -1,70 +1,85 @@
 # Eyepic production deployment
 
-This directory is the source-controlled deployment configuration for Eyepic's
-Chatwoot installation at `https://support.eyepic.io`.
+Production: https://support.eyepic.io. Source: `/opt/apps/chatwoot`.
+Runtime configuration, credentials and volumes: `/opt/chatwoot-runtime`.
+Rails binds `127.0.0.1:3001`; Caddy provides TLS. The neighboring CRM uses port 3000.
 
-## Runtime layout
+## Reproducible custom image
 
-| Path | Purpose |
-| --- | --- |
-| `/opt/apps/chatwoot` | Clone of `cyprian/chatwoot` on the server |
-| `/opt/chatwoot-runtime` | Compose file, environment variables, and backups |
-| `/opt/chatwoot-runtime/.env` | Production secrets; never commit this file |
-| `/opt/chatwoot-runtime/backups` | Daily compressed PostgreSQL backups |
+The Dockerfile pins upstream Chatwoot **4.18.0 by digest** for dependencies and
+system libraries. It installs the complete merged Eyepic application source and
+compiles its assets with the upstream lockfiles. Firebase Profile, Eye.Photo,
+OpenAI text/email translation, Hub egress controls, custom per-inbox Slack and
+production favicon assets are tracked in source. No build-time source patches
+or copies from an older development version are used.
 
-Chatwoot is bound only to `127.0.0.1:3001`. Caddy terminates TLS and routes
-`support.eyepic.io` to it. The companion CRM remains on `127.0.0.1:3000`.
-
-## Firebase Profile inbox sidebar
-
-This deployment builds the pinned `eyepic/chatwoot-firebase-profile` image.
-It adds the **Firebase Profile** inbox integration, which lets an agent select
-**Check app profile** in the conversation sidebar. The lookup gateway retrieves
-the Firebase Auth user matching the contact email plus `users_credits/{uid}`
-and `subscriptions/{uid}` from Firestore.
-
-The gateway is internal-only. On the server, store the Firebase service-account
-JSON at `/opt/chatwoot-runtime/firebase-service-account.json` with mode `0600`.
-Set `FIREBASE_PROFILE_ENABLED=true` in `/opt/chatwoot-runtime/.env`, then run
-`deployment/eyepic/bootstrap-server.sh`. Enable **Firebase Profile** for each
-required inbox in Chatwoot under Settings → Integrations.
-
-Never commit the service account. The browser does not receive it; only the
-internal gateway container can read it.
-
-## First deployment
-
-1. Install Docker Compose v2 and Caddy on the host.
-2. Clone this repository to `/opt/apps/chatwoot`.
-3. Run `deployment/eyepic/bootstrap-server.sh` as root.
-4. Add a daily root cron job:
-
-   ```cron
-   17 3 * * * root /opt/apps/chatwoot/deployment/eyepic/backup-chatwoot.sh >>/var/log/chatwoot-backup.log 2>&1
-   ```
-
-## Google Workspace inbox
-
-Add these values to `/opt/chatwoot-runtime/.env`, preserving mode `0600`:
+Set these values in the protected runtime `.env`:
 
 ```env
-GOOGLE_OAUTH_CLIENT_ID=
-GOOGLE_OAUTH_CLIENT_SECRET=
-GOOGLE_OAUTH_REDIRECT_URI=https://support.eyepic.io/google/callback
+CHATWOOT_VERSION=v4.18.0
+EYEPIC_REVISION=<full tested Git commit>
+CHATWOOT_IMAGE=eyepic/chatwoot-firebase-profile:v4.18.0-<full tested Git commit>
+CHATWOOT_BUILD_CONTEXT=/opt/apps/chatwoot
 ```
 
-The authorized redirect URI in Google Cloud must be exactly
-`https://support.eyepic.io/google/callback`. Run
-`deployment/eyepic/configure-google-oauth.sh` after adding the variables.
-This writes the settings to Chatwoot's installation configuration, which is
-required by current Chatwoot releases for the Google email-channel flow.
+Build once and run Rails and Sidekiq from the same immutable image. Changing
+`CHATWOOT_VERSION` alone does not select or rebuild an image. Record the image
+ID and upstream digest with each deployment.
 
-## Verification
+## Integrations
+
+- Firebase Profile uses existing per-inbox `firebase_profile` hooks. Its internal
+  gateway reads Firebase Auth and Firestore credits/subscriptions. Preserve the
+  gateway token and `/opt/chatwoot-runtime/firebase-service-account.json` (0600).
+  Keep `FIREBASE_PROFILE_ENABLED=true` and the Compose `firebase-profile` profile.
+- Eye.Photo uses per-inbox `eye_photo` hooks; its API key is held in the hook's
+  token column. Lookups enforce the conversation's account and inbox permissions.
+- Translation uses the account's enabled OpenAI integration and caches English
+  translations while preserving original text/email views and the AI menu action.
+- Custom Slack uses persisted workspace connections, inbox configurations and
+  delivery records. Preserve database and encryption keys. Its OAuth callback is
+  `/api/v1/slack_workspace_oauth/callback` on the production hostname.
+- Hub sync, registration, telemetry and Hub-mediated push remain opt-in via
+  `CHATWOOT_HUB_ENABLED`; unset defaults to disabled.
+- Google Workspace requires `GOOGLE_OAUTH_CLIENT_ID`,
+  `GOOGLE_OAUTH_CLIENT_SECRET`, and
+  `GOOGLE_OAUTH_REDIRECT_URI=https://support.eyepic.io/google/callback`.
+  `configure-google-oauth.sh` reconciles installation settings when configuring
+  the integration; existing settings are preserved on upgrade.
+
+Never commit `.env`, OAuth tokens, encryption keys or the Firebase service account.
+
+## Upgrade procedure
+
+1. Preserve the running image and protected runtime configuration. Snapshot the
+   database, attachment volume and Redis, and keep a recovery copy off-host.
+2. Restore a recent database/attachment snapshot into separate staging services.
+   Block external egress and do not run staging workers against customer channels.
+3. Build the candidate, run existing Ruby/Vue tests, and migrate the staging copy
+   using `bundle exec rails db:chatwoot_prepare`. Check integration settings,
+   encrypted token readability, account/message counts and attachment storage.
+4. Prove the pre-upgrade snapshot restores and the retained old image boots.
+5. Put only support in maintenance, stop writers and gracefully stop workers,
+   then take final consistent recovery snapshots. Keep CRM available.
+6. Migrate once with the tested candidate; start Rails/Sidekiq from the same image,
+   preserve the Firebase profile, and verify local/public HTTP, authentication,
+   assets, worker queues and custom integration endpoints before reopening.
+7. Monitor a complete scheduled email-polling cycle and reconcile inbound retries.
+
+After a schema change, rollback requires restoring the matching database,
+attachments, queue state and configuration before using the retained old image.
+Do not blindly restore an old database after accepting new customer traffic.
+
+## Verification and backup
 
 ```bash
 cd /opt/chatwoot-runtime
 docker compose ps
 curl -fsS http://127.0.0.1:3001/ >/dev/null
-curl -I https://support.eyepic.io/
+curl -fsS https://support.eyepic.io/ >/dev/null
 /opt/apps/chatwoot/deployment/eyepic/backup-chatwoot.sh
 ```
+
+The daily backup script covers PostgreSQL. Attachment, Redis, credentials and
+image recovery artifacts must also be captured for release rollback. Keep its
+existing daily 03:17 UTC cron job and off-host recovery storage.

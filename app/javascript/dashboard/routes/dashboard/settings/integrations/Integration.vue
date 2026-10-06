@@ -69,11 +69,11 @@ const confirmDeletion = () => {
     >
       <div class="flex h-16 w-16 items-center justify-center flex-shrink-0">
         <img
-          :src="`/dashboard/images/integrations/${integrationId}.png`"
+          :src="`/dashboard/images/integrations/${integrationId}.png${integrationId === 'firebase_profile' ? '?v=2' : ''}`"
           class="max-w-full rounded-md border border-n-weak shadow-sm block dark:hidden bg-n-alpha-3 dark:bg-n-alpha-2"
         />
         <img
-          :src="`/dashboard/images/integrations/${integrationId}-dark.png`"
+          :src="`/dashboard/images/integrations/${integrationId}-dark.png${integrationId === 'firebase_profile' ? '?v=2' : ''}`"
           class="max-w-full rounded-md border border-n-weak shadow-sm hidden dark:block bg-n-alpha-3 dark:bg-n-alpha-2"
         />
       </div>

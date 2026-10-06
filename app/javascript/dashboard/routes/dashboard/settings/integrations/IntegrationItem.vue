@@ -55,11 +55,11 @@ const actionURL = computed(() =>
     <div class="flex items-start justify-between">
       <div class="flex h-12 w-12 mb-2">
         <img
-          :src="`/dashboard/images/integrations/${id}.png`"
+          :src="`/dashboard/images/integrations/${id}.png${id === 'firebase_profile' ? '?v=2' : ''}`"
           class="max-w-full rounded-md border border-n-weak shadow-sm block dark:hidden bg-n-alpha-3 dark:bg-n-alpha-2"
         />
         <img
-          :src="`/dashboard/images/integrations/${id}-dark.png`"
+          :src="`/dashboard/images/integrations/${id}-dark.png${id === 'firebase_profile' ? '?v=2' : ''}`"
           class="max-w-full rounded-md border border-n-weak shadow-sm hidden dark:block bg-n-alpha-3 dark:bg-n-alpha-2"
         />
       </div>

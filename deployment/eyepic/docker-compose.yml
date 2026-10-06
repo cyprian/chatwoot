@@ -2,12 +2,12 @@ name: chatwoot
 
 services:
   rails:
-    image: eyepic/chatwoot-firebase-profile:${CHATWOOT_VERSION:?set CHATWOOT_VERSION}
+    image: ${CHATWOOT_IMAGE:?set CHATWOOT_IMAGE to the tested immutable image}
     build:
       context: ${CHATWOOT_BUILD_CONTEXT:?set CHATWOOT_BUILD_CONTEXT}
       dockerfile: deployment/eyepic/Dockerfile.chatwoot-firebase-profile
       args:
-        CHATWOOT_VERSION: ${CHATWOOT_VERSION:?set CHATWOOT_VERSION}
+        EYEPIC_REVISION: ${EYEPIC_REVISION:?set EYEPIC_REVISION}
     env_file: .env
     volumes:
       - storage-data:/app/storage
@@ -27,12 +27,12 @@ services:
     restart: unless-stopped
 
   sidekiq:
-    image: eyepic/chatwoot-firebase-profile:${CHATWOOT_VERSION:?set CHATWOOT_VERSION}
+    image: ${CHATWOOT_IMAGE:?set CHATWOOT_IMAGE to the tested immutable image}
     build:
       context: ${CHATWOOT_BUILD_CONTEXT:?set CHATWOOT_BUILD_CONTEXT}
       dockerfile: deployment/eyepic/Dockerfile.chatwoot-firebase-profile
       args:
-        CHATWOOT_VERSION: ${CHATWOOT_VERSION:?set CHATWOOT_VERSION}
+        EYEPIC_REVISION: ${EYEPIC_REVISION:?set EYEPIC_REVISION}
     env_file: .env
     volumes:
       - storage-data:/app/storage

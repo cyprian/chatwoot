@@ -79,7 +79,16 @@ slack:
   action: https://slack.com/oauth/v2/authorize?scope=commands,chat:write,channels:read,channels:manage,channels:join,groups:read,groups:write,im:write,mpim:write,users:read,users:read.email,chat:write.customize,channels:history,groups:history,mpim:history,im:history,files:read,files:write
   hook_type: account
   allow_multiple_hooks: false
-  visible_properties: ['channel_name']
+  visible_properties: ['channel_name', 'message_mode']
+  settings_json_schema:
+    {
+      'type': 'object',
+      'properties':
+        {
+          'channel_name': { 'type': 'string' },
+          'message_mode': { 'type': 'string', 'enum': ['two_way', 'alert'] },
+        },
+    }
 dialogflow:
   id: dialogflow
   logo: dialogflow.png
@@ -251,6 +260,37 @@ shopify:
   i18n_key: shopify
   hook_type: account
   allow_multiple_hooks: false
+  visible_properties: []
+
+firebase_profile:
+  id: firebase_profile
+  logo: firebase_profile.png
+  i18n_key: firebase_profile
+  hook_type: inbox
+  allow_multiple_hooks: true
+  settings_form_schema: []
+
+eye_photo:
+  id: eye_photo
+  logo: eye_photo.png
+  i18n_key: eye_photo
+  hook_type: inbox
+  allow_multiple_hooks: true
+  settings_json_schema:
+    {
+      'type': 'object',
+      'additionalProperties': false,
+    }
+  settings_form_schema:
+    [
+      {
+        'label': 'Eye.photo admin API key',
+        'type': 'password',
+        'name': 'api_key',
+        'validation': 'required',
+        'help': 'Use an admin-scoped API key owned by an Eye.photo super admin. The key is stored securely and is never shown again.',
+      },
+    ]
   visible_properties: []
 
 leadsquared:

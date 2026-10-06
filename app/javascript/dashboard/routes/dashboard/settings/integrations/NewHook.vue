@@ -39,20 +39,25 @@ export default {
     ...mapGetters({
       uiFlags: 'integrations/getUIFlags',
       dialogFlowEnabledInboxes: 'inboxes/dialogFlowEnabledInboxes',
+      allInboxes: 'inboxes/getInboxes',
     }),
     inboxes() {
-      return this.dialogFlowEnabledInboxes
+      const selectableInboxes = this.isIntegrationDialogflow
+        ? this.dialogFlowEnabledInboxes
+        : this.allInboxes;
+
+      return selectableInboxes
         .filter(inbox => {
-          if (!this.isIntegrationDialogflow) {
+          if (!this.requiresUniqueInbox) {
             return true;
           }
-          return !this.connectedDialogflowInboxIds.includes(inbox.id);
+          return !this.connectedInboxIds.includes(inbox.id);
         })
         .map(inbox => ({ label: inbox.name, value: inbox.id }));
     },
 
-    connectedDialogflowInboxIds() {
-      if (!this.isIntegrationDialogflow) {
+    connectedInboxIds() {
+      if (!this.requiresUniqueInbox) {
         return [];
       }
       return this.integration.hooks.map(hook => hook.inbox?.id);
@@ -62,6 +67,9 @@ export default {
     },
     isIntegrationDialogflow() {
       return this.integration.id === 'dialogflow';
+    },
+    requiresUniqueInbox() {
+      return ['dialogflow', 'eye_photo'].includes(this.integration.id);
     },
     submitButtonLabel() {
       if (this.integration.id === 'openai' && this.uiFlags.isCreatingHook) {
