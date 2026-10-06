@@ -26,6 +26,22 @@ Build once and run Rails and Sidekiq from the same immutable image. Changing
 `CHATWOOT_VERSION` alone does not select or rebuild an image. Record the image
 ID and upstream digest with each deployment.
 
+For hosts with limited memory, compile assets on the builder from the same clean
+release commit (Node 24, pnpm 10.2.0 and the frozen lockfile):
+
+```bash
+RAILS_ENV=production SECRET_KEY_BASE=precompile_placeholder bundle exec rake assets:precompile
+git rev-parse HEAD > public/eyepic-revision.txt
+docker build --build-arg PRECOMPILED_ASSETS=true \
+  --build-arg EYEPIC_REVISION="$(git rev-parse HEAD)" \
+  -f deployment/eyepic/Dockerfile.chatwoot-firebase-profile \
+  -t "eyepic/chatwoot-firebase-profile:v4.18.0-$(git rev-parse HEAD)" .
+```
+
+Transfer the generated `public/vite`, `public/assets`, `public/packs` and revision
+file together if packaging on another host. The image build checks the asset
+revision and required Vite/SDK manifests before accepting precompiled output.
+
 ## Integrations
 
 - Firebase Profile uses existing per-inbox `firebase_profile` hooks. Its internal
