@@ -1,13 +1,13 @@
 # Dependencies and system libraries come from the exact upstream release.
 # All application code comes from the merged Eyepic checkout.
-ARG CHATWOOT_BASE_IMAGE=chatwoot/chatwoot:v4.18.0@sha256:b419dded7e9d2f54a24fd427b74ba7e6069d601b500618045c1eb6c01a1cc9a1
+ARG CHATWOOT_BASE_IMAGE=chatwoot/chatwoot:v4.19.1@sha256:a0d571a3a2f78f4fa4b1d7c21a53309c0184068d6021b3664ab37788faef04c1
 FROM ${CHATWOOT_BASE_IMAGE}
 
 USER root
 ARG EYEPIC_REVISION
 LABEL org.opencontainers.image.source="https://github.com/cyprian/chatwoot" \
       org.opencontainers.image.revision="${EYEPIC_REVISION}" \
-      org.opencontainers.image.version="4.18.0"
+      org.opencontainers.image.version="4.19.1"
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 ARG PRECOMPILED_ASSETS=false
 COPY Gemfile Gemfile.lock package.json pnpm-lock.yaml /app/

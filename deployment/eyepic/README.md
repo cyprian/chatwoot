@@ -6,7 +6,7 @@ Rails binds `127.0.0.1:3001`; Caddy provides TLS. The neighboring CRM uses port 
 
 ## Reproducible custom image
 
-The Dockerfile pins upstream Chatwoot **4.18.0 by digest** for dependencies and
+The Dockerfile pins upstream Chatwoot **4.19.1 by digest** for dependencies and
 system libraries. It installs the complete merged Eyepic application source and
 compiles its assets with the upstream lockfiles. Firebase Profile, Eye.Photo,
 OpenAI text/email translation, Hub egress controls, custom per-inbox Slack and
@@ -16,9 +16,9 @@ or copies from an older development version are used.
 Set these values in the protected runtime `.env`:
 
 ```env
-CHATWOOT_VERSION=v4.18.0
+CHATWOOT_VERSION=v4.19.1
 EYEPIC_REVISION=<full tested Git commit>
-CHATWOOT_IMAGE=eyepic/chatwoot-firebase-profile:v4.18.0-<full tested Git commit>
+CHATWOOT_IMAGE=eyepic/chatwoot-firebase-profile:v4.19.1-<full tested Git commit>
 CHATWOOT_BUILD_CONTEXT=/opt/apps/chatwoot
 ```
 
@@ -27,7 +27,7 @@ Build once and run Rails and Sidekiq from the same immutable image. Changing
 ID and upstream digest with each deployment.
 
 For hosts with limited memory, compile assets on the builder from the same clean
-release commit (Node 24, pnpm 10.2.0 and the frozen lockfile):
+release commit (Node 24.22.1 or newer in the 24.x series, pnpm 10.2.0 and the frozen lockfile):
 
 ```bash
 RAILS_ENV=production SECRET_KEY_BASE=precompile_placeholder bundle exec rake assets:precompile
@@ -35,7 +35,7 @@ git rev-parse HEAD > public/eyepic-revision.txt
 docker build --build-arg PRECOMPILED_ASSETS=true \
   --build-arg EYEPIC_REVISION="$(git rev-parse HEAD)" \
   -f deployment/eyepic/Dockerfile.chatwoot-firebase-profile \
-  -t "eyepic/chatwoot-firebase-profile:v4.18.0-$(git rev-parse HEAD)" .
+  -t "eyepic/chatwoot-firebase-profile:v4.19.1-$(git rev-parse HEAD)" .
 ```
 
 Transfer the generated `public/vite`, `public/assets`, `public/packs` and revision
@@ -52,6 +52,9 @@ revision and required Vite/SDK manifests before accepting precompiled output.
   token column. Lookups enforce the conversation's account and inbox permissions.
 - Translation uses the account's enabled OpenAI integration and caches English
   translations while preserving original text/email views and the AI menu action.
+  Requests without `target_language` keep this OpenAI English response contract;
+  explicit language requests use upstream providers. Native automatic translation
+  remains available through its separate endpoint and account feature settings.
 - Custom Slack uses persisted workspace connections, inbox configurations and
   delivery records. Preserve database and encryption keys. Its OAuth callback is
   `/api/v1/slack_workspace_oauth/callback` on the production hostname.

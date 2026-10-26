@@ -1,12 +1,9 @@
 <script setup>
-import { computed, useTemplateRef, ref, onMounted, onBeforeUnmount } from 'vue';
-import { useStore } from 'vuex';
+import { computed, useTemplateRef, ref, onMounted } from 'vue';
 import { Letter } from 'vue-letter';
 import { sanitizeTextForRender } from '@chatwoot/utils';
 import { allowedCssProperties } from 'lettersanitizer';
 
-import { useAlert } from 'dashboard/composables';
-import { parseAPIErrorResponse } from 'dashboard/store/utils/api';
 import Icon from 'next/icon/Icon.vue';
 import { EmailQuoteExtractor } from 'dashboard/helper/emailQuoteExtractor.js';
 import FormattedContent from 'next/message/bubbles/Text/FormattedContent.vue';
@@ -14,27 +11,28 @@ import BaseBubble from 'next/message/bubbles/Base.vue';
 import AttachmentChips from 'next/message/chips/AttachmentChips.vue';
 import EmailMeta from './EmailMeta.vue';
 import TranslationToggle from 'dashboard/components-next/message/TranslationToggle.vue';
-import NextButton from 'dashboard/components-next/button/Button.vue';
 
 import { useMessageContext } from '../../provider.js';
 import { MESSAGE_TYPES } from 'next/message/constants.js';
 import { useTranslations } from 'dashboard/composables/useTranslations';
+import { useEnglishTranslation } from 'dashboard/composables/useEnglishTranslation';
+import NextButton from 'dashboard/components-next/button/Button.vue';
 
 const {
   id,
+  conversationId,
   content,
   contentAttributes,
   attachments,
-  conversationId,
   messageType,
+  contactSide,
+  showingOriginal,
+  isCaptainMessage,
 } = useMessageContext();
-const store = useStore();
 
 const isExpandable = ref(false);
 const isExpanded = ref(false);
 const showQuotedMessage = ref(false);
-const renderOriginal = ref(false);
-const isTranslating = ref(false);
 const contentContainer = useTemplateRef('contentContainer');
 
 onMounted(() => {
@@ -44,12 +42,31 @@ onMounted(() => {
 const isOutgoing = computed(() => messageType.value === MESSAGE_TYPES.OUTGOING);
 const isIncoming = computed(() => !isOutgoing.value);
 
-const { hasTranslations, translationContent } =
-  useTranslations(contentAttributes);
-const englishTranslation = computed(
-  () => contentAttributes.value?.translations?.en
+const {
+  englishTranslation,
+  hasEnglishTranslation,
+  isTranslating: isTranslatingEnglish,
+  translateToEnglish,
+} = useEnglishTranslation({
+  id,
+  conversationId,
+  contentAttributes,
+  showingOriginal,
+});
+const shouldShowTranslateAction = computed(
+  () =>
+    messageType.value === MESSAGE_TYPES.INCOMING && !hasEnglishTranslation.value
 );
-const hasEnglishTranslation = computed(() => !!englishTranslation.value);
+
+const { hasTranslations, translationContent } = useTranslations(
+  contentAttributes,
+  contactSide
+);
+const showsTranslation = computed(
+  () =>
+    (hasEnglishTranslation.value || hasTranslations.value) &&
+    !showingOriginal.value
+);
 
 const originalEmailText = computed(() => {
   const text =
@@ -70,117 +87,60 @@ const hasEmailContent = computed(() => {
   );
 });
 
-const translationToHtml = translation => {
-  const escapedTranslation = translation
-    .replace(/\r\n/g, '\n')
+const translatedText = computed(
+  () => englishTranslation.value || translationContent.value
+);
+const translationToHtml = translation =>
+  translation
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-
-  return escapedTranslation
+    .replace(/'/g, '&#039;')
+    .replace(/\r\n/g, '\n')
     .split(/\n{2,}/)
     .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
     .join('');
-};
 
-const messageContent = computed(() => {
-  // If translations exist and we're showing translations (not original)
-  if (hasEnglishTranslation.value && !renderOriginal.value) {
-    return englishTranslation.value;
-  }
-
-  if (hasTranslations.value && !renderOriginal.value) {
-    return translationContent.value;
-  }
-  // Otherwise show original content
-  return content.value;
-});
-
-const textToShow = computed(() => {
-  // If translations exist and we're showing translations (not original)
-  if (hasEnglishTranslation.value && !renderOriginal.value) {
-    return englishTranslation.value;
-  }
-
-  if (hasTranslations.value && !renderOriginal.value) {
-    return translationContent.value;
-  }
-  // Otherwise show original text
-  return originalEmailText.value;
-});
-
-const fullHTML = computed(() => {
-  // If translations exist and we're showing translations (not original)
-  if (hasEnglishTranslation.value && !renderOriginal.value) {
-    return translationToHtml(englishTranslation.value);
-  }
-
-  if (hasTranslations.value && !renderOriginal.value) {
-    return translationToHtml(translationContent.value);
-  }
-  // Otherwise show original HTML
-  return originalEmailHtml.value;
-});
-
-const unquotedHTML = computed(() =>
-  EmailQuoteExtractor.extractQuotes(fullHTML.value)
+const messageContent = computed(() =>
+  showsTranslation.value ? translatedText.value : content.value
 );
 
-const hasQuotedMessage = computed(() =>
-  EmailQuoteExtractor.hasQuotes(fullHTML.value)
+const textToShow = computed(() =>
+  showsTranslation.value ? translatedText.value : originalEmailText.value
+);
+
+const fullHTML = computed(() => {
+  if (!showsTranslation.value) return originalEmailHtml.value;
+  return contentAttributes.value?.translationProvider === 'google_translate'
+    ? translatedText.value
+    : translationToHtml(translatedText.value);
+});
+
+const isForwarded = computed(
+  () => !!contentAttributes.value?.forwardedMessageId
+);
+
+const unquotedHTML = computed(() =>
+  isForwarded.value
+    ? fullHTML.value
+    : EmailQuoteExtractor.extractQuotes(fullHTML.value)
+);
+
+const hasQuotedMessage = computed(
+  () => !isForwarded.value && EmailQuoteExtractor.hasQuotes(fullHTML.value)
 );
 
 // Ensure unique keys for <Letter> when toggling between original and translated views.
 // This forces Vue to re-render the component and update content correctly.
 const translationKeySuffix = computed(() => {
-  if (renderOriginal.value) return 'original';
-  if (hasTranslations.value) return 'translated';
+  if (showingOriginal.value) return 'original';
+  if (hasEnglishTranslation.value || hasTranslations.value) return 'translated';
   return 'original';
 });
 
 const handleSeeOriginal = () => {
-  renderOriginal.value = !renderOriginal.value;
-};
-
-const showEnglishTranslation = event => {
-  if (Number(event.detail?.messageId) === Number(id.value)) {
-    renderOriginal.value = false;
-  }
-};
-
-onMounted(() => {
-  window.addEventListener(
-    'chatwoot:show-english-translation',
-    showEnglishTranslation
-  );
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener(
-    'chatwoot:show-english-translation',
-    showEnglishTranslation
-  );
-});
-
-const shouldShowTranslateAction = computed(() => {
-  return isIncoming.value && !hasEnglishTranslation.value;
-});
-
-const translateToEnglish = async () => {
-  isTranslating.value = true;
-  try {
-    await store.dispatch('translateMessage', {
-      conversationId: conversationId.value,
-      messageId: id.value,
-    });
-    renderOriginal.value = false;
-  } catch (error) {
-    useAlert(parseAPIErrorResponse(error));
-  } finally {
-    isTranslating.value = false;
-  }
+  showingOriginal.value = !showingOriginal.value;
 };
 </script>
 
@@ -283,16 +243,30 @@ const translateToEnglish = async () => {
       slate
       xs
       icon="i-lucide-languages"
-      :is-loading="isTranslating"
+      :is-loading="isTranslatingEnglish"
       class="self-start ml-2 mb-2"
       @click="translateToEnglish"
     >
       {{ $t('CONVERSATION.TRANSLATE_TO_ENGLISH') }}
     </NextButton>
+    <NextButton
+      v-if="hasEnglishTranslation"
+      ghost
+      slate
+      xs
+      class="self-start ml-2 mb-2"
+      @click="handleSeeOriginal"
+    >
+      {{
+        showingOriginal
+          ? $t('CONVERSATION.VIEW_TRANSLATED')
+          : $t('CONVERSATION.VIEW_ORIGINAL')
+      }}
+    </NextButton>
     <TranslationToggle
-      v-if="hasTranslations"
+      v-if="!isCaptainMessage && !hasEnglishTranslation"
       class="py-2 px-3"
-      :showing-original="renderOriginal"
+      :showing-original="showingOriginal"
       @toggle="handleSeeOriginal"
     />
     <section

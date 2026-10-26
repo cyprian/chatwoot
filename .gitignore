@@ -107,3 +107,6 @@ Procfile.worktree
 .nodeterm/project.json
 # Identifies assets compiled outside Docker for a specific release commit.
 /public/eyepic-revision.txt
+
+# Cache that `rake ruby_llm:refresh_models` writes next to the model registry
+config/llm_models.json.published.json

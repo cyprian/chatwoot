@@ -23,8 +23,8 @@ if [ ! -f "$RUNTIME_DIR/.env" ]; then
   redis_password=$(openssl rand -hex 32)
 
   cat >"$RUNTIME_DIR/.env" <<EOF
-CHATWOOT_VERSION=v4.18.0
-CHATWOOT_IMAGE=eyepic/chatwoot-firebase-profile:v4.18.0-$EYEPIC_REVISION
+CHATWOOT_VERSION=v4.19.1
+CHATWOOT_IMAGE=eyepic/chatwoot-firebase-profile:v4.19.1-$EYEPIC_REVISION
 EYEPIC_REVISION=$EYEPIC_REVISION
 FRONTEND_URL=https://$DOMAIN
 FORCE_SSL=true
