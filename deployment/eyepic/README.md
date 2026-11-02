@@ -102,3 +102,15 @@ curl -fsS https://support.eyepic.io/ >/dev/null
 The daily backup script covers PostgreSQL. Attachment, Redis, credentials and
 image recovery artifacts must also be captured for release rollback. Keep its
 existing daily 03:17 UTC cron job and off-host recovery storage.
+
+## GitHub Actions in the fork
+
+The upstream CE/EE publish workflows target `chatwoot/chatwoot` on Docker Hub and
+run only in the upstream repository. Eyepic production images follow the custom
+build/deploy procedure above. Lint, security checks and application tests stay enabled.
+
+GHSA-to-Linear syncing is opt-in in forks. To use it, configure `GHSA_READ_TOKEN`,
+`LINEAR_API_KEY`, `LINEAR_TEAM_ID`, `LINEAR_PROJECT_ID` and `LINEAR_LABEL_ID` as
+repository secrets, then set the repository variable `ENABLE_GHSA_LINEAR_SYNC=true`.
+Optional Slack/Discord webhook secrets enable notifications. Without the opt-in,
+scheduled and manual sync jobs are skipped before allocating a runner.

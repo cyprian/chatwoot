@@ -10,6 +10,8 @@ permissions:
 
 jobs:
   sync:
+    # Forks must explicitly opt in after configuring the required GitHub/Linear secrets.
+    if: github.repository == 'chatwoot/chatwoot' || vars.ENABLE_GHSA_LINEAR_SYNC == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

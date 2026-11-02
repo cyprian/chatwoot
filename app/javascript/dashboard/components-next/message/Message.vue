@@ -157,8 +157,6 @@ const inboxGetter = useMapGetter('inboxes/getInbox');
 const inbox = computed(() => inboxGetter.value(props.inboxId) || {});
 const isOnChatwootCloud = useMapGetter('globalConfig/isOnChatwootCloud');
 const { replaceInstallationName } = useBranding();
-const autoTranslate = useMapGetter('getAutoTranslate');
-const translationState = useMapGetter('getMessageTranslationState');
 const showingOriginal = ref(false);
 const contactSide = computed(() =>
   isContactSide(props.messageType, props.sender?.type ?? props.senderType)
@@ -172,13 +170,6 @@ const displayedContent = computed(() =>
     ? props.content
     : translationContent.value
 );
-
-const isAutoTranslated = computed(() => {
-  const { pending } = translationState.value(props.id);
-  return (
-    !!autoTranslate.value.language && (!!translationContent.value || pending)
-  );
-});
 
 const isCaptainMessage = computed(() => {
   const senderType = props.sender?.type ?? props.senderType;

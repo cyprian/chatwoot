@@ -23,6 +23,8 @@ permissions:
 
 jobs:
   build:
+    # This workflow publishes to the upstream Chatwoot Docker Hub repository.
+    if: github.repository == 'chatwoot/chatwoot'
     strategy:
       fail-fast: false
       matrix:
@@ -99,6 +101,7 @@ jobs:
           retention-days: 1
 
   merge:
+    if: github.repository == 'chatwoot/chatwoot'
     runs-on: ubuntu-latest
     needs:
       - build

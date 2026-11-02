@@ -1,13 +1,13 @@
 require 'rails_helper'
 
 RSpec.describe Internal::TriggerDailyScheduledItemsJob do
+  subject(:perform_job) { described_class.perform_now }
+
   around do |example|
     with_modified_env CHATWOOT_HUB_ENABLED: 'true' do
       example.run
     end
   end
-
-  subject(:perform_job) { described_class.perform_now }
 
   let(:installation_id) { 'test-installation-id' }
   let(:designated_minute) { Digest::MD5.hexdigest(installation_id).hex % 1440 }
