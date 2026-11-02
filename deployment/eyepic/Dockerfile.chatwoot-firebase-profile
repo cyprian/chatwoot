@@ -17,7 +17,12 @@ COPY lib /app/lib
 COPY config /app/config
 COPY db /app/db
 COPY public /app/public
-RUN bundle check \
+# Security fixes may advance the lockfile beyond the pinned base image's gems.
+RUN if ! bundle check; then \
+       apk add --no-cache --virtual .eyepic-gem-build-deps build-base linux-headers \
+       && BUNDLE_FROZEN=true bundle install --jobs 2 \
+       && apk del .eyepic-gem-build-deps; \
+     fi \
   && if [ "$PRECOMPILED_ASSETS" = true ]; then \
        test "$(cat /app/public/eyepic-revision.txt)" = "$EYEPIC_REVISION" \
        && test -f /app/public/vite/.vite/manifest.json \

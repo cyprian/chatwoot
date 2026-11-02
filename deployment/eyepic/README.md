@@ -6,9 +6,10 @@ Rails binds `127.0.0.1:3001`; Caddy provides TLS. The neighboring CRM uses port 
 
 ## Reproducible custom image
 
-The Dockerfile pins upstream Chatwoot **4.19.1 by digest** for dependencies and
-system libraries. It installs the complete merged Eyepic application source and
-compiles its assets with the upstream lockfiles. Firebase Profile, Eye.Photo,
+The Dockerfile pins upstream Chatwoot **4.19.1 by digest** for baseline dependencies and
+system libraries. If reviewed security patches advance the merged Gemfile.lock,
+the build installs those exact locked gems and removes temporary build tools. It installs the complete merged Eyepic application source and
+compiles its assets with the merged lockfiles. Firebase Profile, Eye.Photo,
 OpenAI text/email translation, Hub egress controls, custom per-inbox Slack and
 production favicon assets are tracked in source. No build-time source patches
 or copies from an older development version are used.
